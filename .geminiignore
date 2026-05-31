@@ -1,0 +1,10 @@
+node_modules
+.expo
+android
+ios
+web-build
+dist
+.env
+package-lock.json
+*.db
+*.sqlite
