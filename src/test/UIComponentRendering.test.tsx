@@ -5,6 +5,29 @@ import { PinDetailsBottomSheet } from '../components/PinDetailsBottomSheet';
 import Tag from '../model/Tag';
 import Pin from '../model/Pin';
 
+// Mock the database module to run in-memory during tests and avoid SQLite native bridge issues
+jest.mock('../model/database', () => {
+  const { Database } = require('@nozbe/watermelondb');
+  const LokiJSAdapter = require('@nozbe/watermelondb/adapters/lokijs').default;
+  const { schema } = require('./mockSchema');
+  const Pin = require('../model/Pin').default;
+  const Tag = require('../model/Tag').default;
+  const PinTag = require('../model/PinTag').default;
+
+  const adapter = new LokiJSAdapter({
+    schema,
+    useWebWorker: false,
+    useIncrementalIndexedDB: false,
+  });
+
+  return {
+    database: new Database({
+      adapter,
+      modelClasses: [Pin, Tag, PinTag],
+    }),
+  };
+});
+
 // Mock native bottom-sheet to prevent native layout runtime issues in Jest
 jest.mock('@gorhom/bottom-sheet', () => {
   const React = require('react');
