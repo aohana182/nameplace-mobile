@@ -48,3 +48,16 @@ Users expect backups to prevent data loss, but require absolute privacy of their
     *   All coordinates, names, and description texts are encrypted client-side using **AES-256-GCM** before uploading.
     *   Keys are derived locally via **PBKDF2** from the user's password.
     *   The SaaS database (Supabase) holds only ciphertext blobs; zero-knowledge is maintained on the server.
+
+---
+
+## ADR 04: Dynamic API Key Injection for Android Google Maps
+
+### Context & Problem
+Hardcoding the Google Maps API Key in `app.json` creates a severe credential leakage hazard because `app.json` is committed to version control. Conversely, leaving the key empty causes a fatal native Android crash (`IllegalStateException: API key not found`) on emulator or device launches for custom native builds.
+
+### Decisions
+1.  **Introduce app.config.js:** Replaced static Android maps configuration in `app.json` with a dynamic `app.config.js` configuration wrapper.
+2.  **Environment Variables:** Inject the API key at build-time using `process.env.GOOGLE_MAPS_API_KEY`.
+3.  **Local Fallback Safe Defaults:** If no environment variable is present, default the API key value to a placeholder string (`AIzaSyDummyKeyForDevelopmentBypass123`). This bypasses the Android SDK's fatal startup check during local development, while ensuring that the real key is never committed to Git.
+
