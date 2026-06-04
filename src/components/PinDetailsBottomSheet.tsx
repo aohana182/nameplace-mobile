@@ -1,38 +1,100 @@
-import React, { useMemo, useRef, useState, useCallback } from 'react';
+import React, { useMemo, useRef, useState, useCallback, useEffect } from 'react';
 import { StyleSheet, View, Text, TextInput, TouchableOpacity, Alert } from 'react-native';
-import BottomSheet, { BottomSheetView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
+import BottomSheet, { BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import Pin from '../model/Pin';
+import Tag from '../model/Tag';
+import PinTag from '../model/PinTag';
 import { database } from '../model/database';
-import { Trash2, Edit3, X, Check } from 'lucide-react-native';
+import { Q } from '@nozbe/watermelondb';
+import withObservables from '@nozbe/with-observables';
+import { Trash2, Edit3, X, Check, Plus } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
+const PALETTE_COLORS = [
+  '#2563EB', // Blue
+  '#7C3AED', // Purple
+  '#059669', // Green
+  '#D97706', // Orange
+  '#DC2626', // Red
+  '#DB2777', // Pink
+  '#0891B2', // Cyan
+  '#4B5563', // Gray
+];
+
 interface PinDetailsBottomSheetProps {
-  pin: Pin | null;
+  pin: Pin;
   onClose: () => void;
+  allTags: Tag[];
+  pinTags: Tag[];
 }
 
-const PinDetailsBottomSheet = ({ pin, onClose }: PinDetailsBottomSheetProps) => {
+export const PinDetailsBottomSheet = ({ pin, onClose, allTags, pinTags }: PinDetailsBottomSheetProps) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [name, setName] = useState(pin?.name || '');
-  const [description, setDescription] = useState(pin?.description || '');
-  const bottomSheetRef = useRef<BottomSheet>(null);
+  const [name, setName] = useState(pin.name);
+  const [description, setDescription] = useState(pin.description || '');
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  
+  // Custom Tag creation state inside Details sheet
+  const [showTagCreator, setShowTagCreator] = useState(false);
+  const [newTagName, setNewTagName] = useState('');
+  const [newTagColor, setNewTagColor] = useState(PALETTE_COLORS[0]);
 
-  const snapPoints = useMemo(() => ['30%', '60%'], []);
+  const bottomSheetRef = useRef<BottomSheet>(null);
+  const snapPoints = useMemo(() => ['40%', '80%'], []);
+
+  // Update component inputs when the observed pin changes
+  useEffect(() => {
+    setName(pin.name);
+    setDescription(pin.description || '');
+  }, [pin]);
+
+  // Sync selected tag state when pinTags or editing state changes
+  useEffect(() => {
+    if (pinTags) {
+      setSelectedTagIds(pinTags.map(t => t.id));
+    }
+  }, [pinTags, isEditing]);
 
   const handleUpdate = async () => {
-    if (!pin) return;
+    if (!name.trim()) return;
+
     await database.write(async () => {
+      // 1. Update Pin details
       await pin.update((p: Pin) => {
-        p.name = name;
-        p.description = description;
+        p.name = name.trim();
+        p.description = description.trim();
       });
+
+      // 2. Fetch current relation rows in pin_tags for this pin
+      const currentRelations = await database.get<PinTag>('pin_tags')
+        .query(Q.where('pin_id', pin.id))
+        .fetch();
+
+      // 3. Diff and update relationships
+      const relationsToDelete = currentRelations.filter(r => !selectedTagIds.includes(r.tag.id));
+      const currentTagIds = currentRelations.map(r => r.tag.id);
+      const tagIdsToAdd = selectedTagIds.filter(id => !currentTagIds.includes(id));
+
+      const deletes = relationsToDelete.map(r => r.prepareDestroyPermanently());
+      
+      const pinTagsCollection = database.get<PinTag>('pin_tags');
+      const creates = tagIdsToAdd.map(tagId => {
+        const tagRecord = allTags.find(t => t.id === tagId);
+        return pinTagsCollection.prepareCreate((pt: PinTag) => {
+          pt.pin.set(pin);
+          pt.tag.set(tagRecord!);
+          pt.userId = 'anonymous';
+        });
+      });
+
+      await database.batch(...deletes, ...creates);
     });
+
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setIsEditing(false);
   };
 
   const handleDelete = async () => {
-    if (!pin) return;
     Alert.alert('Delete Pin', 'Are you sure you want to remove this connection?', [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -40,13 +102,43 @@ const PinDetailsBottomSheet = ({ pin, onClose }: PinDetailsBottomSheetProps) => 
         style: 'destructive',
         onPress: async () => {
           await database.write(async () => {
-            await pin.markAsDeleted();
+            const relations = await database.get<PinTag>('pin_tags')
+              .query(Q.where('pin_id', pin.id))
+              .fetch();
+            
+            const deletes = relations.map(r => r.prepareDestroyPermanently());
+            await database.batch(...deletes);
+            await pin.destroyPermanently();
           });
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           onClose();
         },
       },
     ]);
+  };
+
+  const handleCreateCustomTag = async () => {
+    if (!newTagName.trim()) return;
+
+    await database.write(async () => {
+      await database.get<Tag>('tags').create((t: Tag) => {
+        t.name = newTagName.trim();
+        t.color = newTagColor;
+        t.isSystem = false;
+        t.userId = null;
+      });
+    });
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setNewTagName('');
+    setShowTagCreator(false);
+  };
+
+  const toggleTagSelection = (tagId: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSelectedTagIds(prev =>
+      prev.includes(tagId) ? prev.filter(id => id !== tagId) : [...prev, tagId]
+    );
   };
 
   const renderBackdrop = useCallback(
@@ -61,8 +153,6 @@ const PinDetailsBottomSheet = ({ pin, onClose }: PinDetailsBottomSheetProps) => 
     []
   );
 
-  if (!pin) return null;
-
   return (
     <BottomSheet
       ref={bottomSheetRef}
@@ -72,7 +162,7 @@ const PinDetailsBottomSheet = ({ pin, onClose }: PinDetailsBottomSheetProps) => 
       enablePanDownToClose
       backdropComponent={renderBackdrop}
     >
-      <BottomSheetView style={styles.contentContainer}>
+      <BottomSheetScrollView contentContainerStyle={styles.contentContainer}>
         <View style={styles.header}>
           {isEditing ? (
             <TextInput
@@ -87,20 +177,20 @@ const PinDetailsBottomSheet = ({ pin, onClose }: PinDetailsBottomSheetProps) => 
           <View style={styles.actions}>
             {isEditing ? (
               <>
-                <TouchableOpacity onPress={handleUpdate} style={styles.actionButton}>
-                  <Check size={20} color="#10B981" />
+                <TouchableOpacity onPress={handleUpdate} activeOpacity={0.8} style={[styles.actionButton, { backgroundColor: '#ECFDF5' }]}>
+                  <Check size={20} color="#059669" />
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => setIsEditing(false)} style={styles.actionButton}>
-                  <X size={20} color="#EF4444" />
+                <TouchableOpacity onPress={() => setIsEditing(false)} activeOpacity={0.8} style={[styles.actionButton, { backgroundColor: '#F1F5F9' }]}>
+                  <X size={20} color="#475569" />
                 </TouchableOpacity>
               </>
             ) : (
               <>
-                <TouchableOpacity onPress={() => setIsEditing(true)} style={styles.actionButton}>
-                  <Edit3 size={20} color="#666" />
+                <TouchableOpacity onPress={() => setIsEditing(true)} activeOpacity={0.8} style={[styles.actionButton, { backgroundColor: '#EFF6FF' }]}>
+                  <Edit3 size={20} color="#2563EB" />
                 </TouchableOpacity>
-                <TouchableOpacity onPress={handleDelete} style={styles.actionButton}>
-                  <Trash2 size={20} color="#EF4444" />
+                <TouchableOpacity onPress={handleDelete} activeOpacity={0.8} style={[styles.actionButton, { backgroundColor: '#FEF2F2' }]}>
+                  <Trash2 size={20} color="#DC2626" />
                 </TouchableOpacity>
               </>
             )}
@@ -112,16 +202,126 @@ const PinDetailsBottomSheet = ({ pin, onClose }: PinDetailsBottomSheetProps) => 
             style={styles.descriptionInput}
             value={description}
             onChangeText={setDescription}
+            placeholder="Add notes about your connection..."
             multiline
+            numberOfLines={4}
           />
         ) : (
           <Text style={styles.description}>{pin.description || 'No notes added yet.'}</Text>
         )}
-        
-        <Text style={styles.timestamp}>
-          Added on {new Date(pin.createdAt).toLocaleDateString()}
-        </Text>
-      </BottomSheetView>
+
+        {/* Tags Section */}
+        <View style={styles.tagsSection}>
+          <View style={styles.tagsHeader}>
+            <Text style={styles.label}>{isEditing ? 'Edit Tags' : 'Tags'}</Text>
+            {isEditing && (
+              <TouchableOpacity
+                style={styles.addTagButton}
+                activeOpacity={0.8}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setShowTagCreator(!showTagCreator);
+                }}
+              >
+                <Plus size={16} color="#2563EB" />
+                <Text style={styles.addTagButtonText}>New Tag</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Inline Tag Creator (Edit Mode) */}
+          {isEditing && showTagCreator && (
+            <View style={styles.tagCreatorPanel}>
+              <TextInput
+                style={styles.tagInput}
+                placeholder="Custom tag name (e.g. Mentor)"
+                value={newTagName}
+                onChangeText={setNewTagName}
+              />
+              <View style={styles.colorPalette}>
+                {PALETTE_COLORS.map(color => (
+                  <TouchableOpacity
+                    key={color}
+                    activeOpacity={0.8}
+                    style={[
+                      styles.colorOption,
+                      { backgroundColor: color },
+                      newTagColor === color && styles.selectedColorOption,
+                    ]}
+                    onPress={() => setNewTagColor(color)}
+                  >
+                    {newTagColor === color && <Check size={14} color="white" />}
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <View style={styles.creatorActions}>
+                <TouchableOpacity
+                  style={[styles.smallButton, { backgroundColor: '#2563EB' }]}
+                  activeOpacity={0.8}
+                  onPress={handleCreateCustomTag}
+                >
+                  <Text style={styles.buttonTextSmall}>Create</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.smallButton, { backgroundColor: '#E2E8F0' }]}
+                  activeOpacity={0.8}
+                  onPress={() => setShowTagCreator(false)}
+                >
+                  <Text style={[styles.buttonTextSmall, { color: '#475569' }]}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {/* Badges Layout */}
+          <View style={styles.tagsContainer}>
+            {isEditing ? (
+              allTags.map(tag => {
+                const isSelected = selectedTagIds.includes(tag.id);
+                return (
+                  <TouchableOpacity
+                    key={tag.id}
+                    activeOpacity={0.8}
+                    style={[
+                      styles.tagBadge,
+                      isSelected
+                        ? { backgroundColor: tag.color, borderColor: tag.color }
+                        : { backgroundColor: 'white', borderColor: tag.color },
+                    ]}
+                    onPress={() => toggleTagSelection(tag.id)}
+                  >
+                    <Text
+                      style={[
+                        styles.tagBadgeText,
+                        isSelected ? { color: 'white' } : { color: tag.color },
+                      ]}
+                    >
+                      {tag.name}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })
+            ) : pinTags.length > 0 ? (
+              pinTags.map(tag => (
+                <View
+                  key={tag.id}
+                  style={[styles.tagBadgeView, { backgroundColor: tag.color + '1A', borderColor: tag.color }]}
+                >
+                  <Text style={[styles.tagBadgeText, { color: tag.color }]}>{tag.name}</Text>
+                </View>
+              ))
+            ) : (
+              <Text style={styles.noTagsText}>No tags attached to this pin.</Text>
+            )}
+          </View>
+        </View>
+
+        {!isEditing && (
+          <Text style={styles.timestamp}>
+            Added on {new Date(pin.createdAt).toLocaleDateString()}
+          </Text>
+        )}
+      </BottomSheetScrollView>
     </BottomSheet>
   );
 };
@@ -129,65 +329,224 @@ const PinDetailsBottomSheet = ({ pin, onClose }: PinDetailsBottomSheetProps) => 
 const styles = StyleSheet.create({
   contentContainer: {
     padding: 24,
+    paddingBottom: 48,
+    backgroundColor: '#FFFFFF',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 15,
+    marginBottom: 20,
+    gap: 16,
   },
   title: {
     fontFamily: 'RobotoSlab_700Bold',
-    fontSize: 24,
-    color: '#1a1a1a',
+    fontSize: 26,
+    color: '#0F172A',
     flex: 1,
+    letterSpacing: -0.5,
   },
   titleInput: {
     fontFamily: 'RobotoSlab_700Bold',
-    fontSize: 24,
-    color: '#1a1a1a',
-    borderBottomWidth: 1,
-    borderBottomColor: '#3B82F6',
+    fontSize: 22,
+    color: '#0F172A',
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     flex: 1,
-    minHeight: 44, // 44pt touch target
+    minHeight: 48,
   },
   actions: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 10,
   },
   actionButton: {
-    minHeight: 44, // 44pt touch target
-    minWidth: 44, // 44pt touch target
+    minHeight: 44,
+    minWidth: 44,
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 22,
-    backgroundColor: '#f3f4f6',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
   },
   description: {
     fontFamily: 'Roboto_400Regular',
     fontSize: 16,
-    color: '#4b5563',
-    lineHeight: 24,
-    marginBottom: 20,
+    color: '#334155',
+    lineHeight: 26,
+    marginBottom: 28,
   },
   descriptionInput: {
     fontFamily: 'Roboto_400Regular',
     fontSize: 16,
-    color: '#4b5563',
+    color: '#0F172A',
     lineHeight: 24,
+    backgroundColor: '#F8FAFC',
     borderWidth: 1,
-    borderColor: '#e5e5e5',
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 20,
-    minHeight: 100,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 28,
+    minHeight: 120,
     textAlignVertical: 'top',
+  },
+  label: {
+    fontFamily: 'Roboto_700Bold',
+    fontSize: 12,
+    color: '#64748B',
+    marginBottom: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  tagsSection: {
+    marginBottom: 28,
+  },
+  tagsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  addTagButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    minHeight: 44,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: '#EFF6FF',
+  },
+  addTagButtonText: {
+    fontFamily: 'Roboto_700Bold',
+    fontSize: 14,
+    color: '#2563EB',
+  },
+  tagCreatorPanel: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  tagInput: {
+    fontFamily: 'Roboto_400Regular',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 15,
+    minHeight: 46,
+    marginBottom: 16,
+    color: '#0F172A',
+  },
+  colorPalette: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  colorOption: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  selectedColorOption: {
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    transform: [{ scale: 1.15 }],
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+  },
+  creatorActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  smallButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+  },
+  buttonTextSmall: {
+    fontFamily: 'Roboto_700Bold',
+    fontSize: 14,
+    color: '#FFFFFF',
+  },
+  tagsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  tagBadge: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    minHeight: 38,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tagBadgeView: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    minHeight: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tagBadgeText: {
+    fontFamily: 'Roboto_700Bold',
+    fontSize: 13,
+    letterSpacing: 0.1,
+  },
+  noTagsText: {
+    fontFamily: 'Roboto_400Regular',
+    fontSize: 14,
+    color: '#94A3B8',
+    fontStyle: 'italic',
   },
   timestamp: {
     fontFamily: 'Roboto_400Regular',
-    fontSize: 12,
-    color: '#9ca3af',
+    fontSize: 13,
+    color: '#94A3B8',
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    paddingTop: 16,
+    marginTop: 12,
   },
 });
 
-export default PinDetailsBottomSheet;
+const enhance = withObservables(['pin'], ({ pin }) => ({
+  pin: pin.observe(),
+  allTags: database.get<Tag>('tags').query().observe(),
+  pinTags: database.get<Tag>('tags').query(
+    Q.on('pin_tags', 'pin_id', pin.id)
+  ).observe(),
+}));
+
+export default enhance(PinDetailsBottomSheet);

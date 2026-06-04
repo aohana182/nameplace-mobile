@@ -1,5 +1,6 @@
-import { Model } from '@nozbe/watermelondb';
+import { Model, Query } from '@nozbe/watermelondb';
 import { field, date, readonly, children } from '@nozbe/watermelondb/decorators';
+import PinTag from './PinTag';
 
 export default class Tag extends Model {
   static table = 'tags';
@@ -12,7 +13,7 @@ export default class Tag extends Model {
   @field('color') color!: string;
   @field('is_system') isSystem!: boolean;
 
-  @children('pin_tags') pinTags!: any;
+  @children('pin_tags') pinTags!: Query<PinTag>;
 
   @readonly @date('created_at') createdAt!: Date;
   @readonly @date('updated_at') updatedAt!: Date;

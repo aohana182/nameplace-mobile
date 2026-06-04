@@ -2,6 +2,8 @@ import { Database } from '@nozbe/watermelondb';
 import LokiJSAdapter from '@nozbe/watermelondb/adapters/lokijs';
 import { schema } from './mockSchema';
 import Pin from '../model/Pin';
+import Tag from '../model/Tag';
+import PinTag from '../model/PinTag';
 
 describe('Pin Model', () => {
   let database: Database;
@@ -15,7 +17,7 @@ describe('Pin Model', () => {
 
     database = new Database({
       adapter,
-      modelClasses: [Pin],
+      modelClasses: [Pin, Tag, PinTag],
     });
   });
 

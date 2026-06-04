@@ -16,6 +16,9 @@
 - **No Direct Supabase Writes:** Always write to WatermelonDB; let the sync engine handle the rest.
 - **Native Components:** Use `gorhom/bottom-sheet` and native map markers. Avoid "webby" UI patterns.
 - **Biometrics:** Use `expo-local-authentication` for secure access if requested.
+- **Zero-Knowledge Encryption:** Ensure all coordinate data (lat/lng), names, and descriptions are encrypted client-side (AES-256-GCM) with keys derived from the user's password before syncing. Plaintext user records must never touch Supabase.
+- **Safe Native Fallbacks:** Prevent hardcoding `PROVIDER_GOOGLE` on iOS to avoid startup crashes if API keys are missing. Fallback to Apple Maps natively on iOS.
+
 
 ## Commands
 - **Start:** `npx expo start`

@@ -2,6 +2,8 @@ import { Database } from '@nozbe/watermelondb';
 import LokiJSAdapter from '@nozbe/watermelondb/adapters/lokijs';
 import { schema } from './mockSchema';
 import Pin from '../model/Pin';
+import Tag from '../model/Tag';
+import PinTag from '../model/PinTag';
 import { synchronize } from '@nozbe/watermelondb/sync';
 
 describe('E2E User Journeys (Simulated)', () => {
@@ -10,7 +12,7 @@ describe('E2E User Journeys (Simulated)', () => {
   beforeEach(() => {
     database = new Database({
       adapter: new LokiJSAdapter({ schema, useWebWorker: false, useIncrementalIndexedDB: false }),
-      modelClasses: [Pin],
+      modelClasses: [Pin, Tag, PinTag],
     });
   });
 

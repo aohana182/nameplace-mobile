@@ -7,6 +7,9 @@ import { StatusBar } from 'expo-status-bar';
 import { useFonts, Roboto_400Regular, Roboto_700Bold } from '@expo-google-fonts/roboto';
 import { RobotoSlab_400Regular, RobotoSlab_700Bold } from '@expo-google-fonts/roboto-slab';
 
+import { useEffect } from 'react';
+import { seedSystemTagsIfEmpty } from './src/model/seed';
+
 const AppContent = () => {
   let [fontsLoaded] = useFonts({
     Roboto_400Regular,
@@ -14,6 +17,12 @@ const AppContent = () => {
     RobotoSlab_400Regular,
     RobotoSlab_700Bold,
   });
+
+  useEffect(() => {
+    if (fontsLoaded) {
+      seedSystemTagsIfEmpty();
+    }
+  }, [fontsLoaded]);
 
   if (!fontsLoaded) {
     return (
