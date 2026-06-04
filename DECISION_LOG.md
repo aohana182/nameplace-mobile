@@ -12,16 +12,14 @@ We needed a maps engine to render pins, cluster tags, and support long-press con
 During Android testing, the native build crashed on startup with `java.lang.IllegalStateException: API key not found` because Google Maps was loaded without a declared metadata API key.
 
 ### Decisions
-1.  **Engine Choice:** Use **Native Map SDKs** via `react-native-maps`:
-    *   **iOS:** Apple Maps (default MapKit).
-    *   **Android:** Google Maps (Google Play Services).
+1.  **Engine Choice:** Use the native **Google Maps SDK** via `react-native-maps` on Android (utilizing Google Play Services).
 2.  **Why Native over Web (OSM/Leaflet) or Mapbox:**
-    *   **Performance:** Native maps compile to GPU-accelerated layers, matching the touch latency of native sheet gestures.
-    *   **Cost & Setup Friction:** Apple Maps requires zero API keys or credit card registration on iOS, facilitating immediate test launches.
-    *   **Platform Integration:** Leverages native OS location services and battery-optimized GPS updates.
+    *   **Performance:** Native Google Maps compile to GPU-accelerated OpenGL/Vulkan layers, matching the touch latency of native bottom sheet gestures.
+    *   **Platform Integration:** Leverages Android's built-in location services and battery-optimized GPS callbacks directly.
 3.  **Prevention of Startup Configuration Crashes:**
     *   Inject a placeholder/development API key (`AIzaSy...`) inside `app.json` by default. 
-    *   This forces the Expo prebuild compiler to populate `<meta-data android:name="com.google.android.geo.API_KEY" />` in `AndroidManifest.xml`, bypassing native crashes on Android devices when keys are absent.
+    *   This forces the Expo compiler to populate the required `<meta-data android:name="com.google.android.geo.API_KEY" />` tag in the generated `AndroidManifest.xml`, bypassing native crashes on Android emulator/device boots when API keys are absent.
+
 
 ---
 
