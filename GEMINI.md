@@ -18,6 +18,8 @@
 - **Biometrics:** Use `expo-local-authentication` for secure access if requested.
 - **Zero-Knowledge Encryption:** Ensure all coordinate data (lat/lng), names, and descriptions are encrypted client-side (AES-256-GCM) with keys derived from the user's password before syncing. Plaintext user records must never touch Supabase.
 - **Safe Native Fallbacks:** Prevent hardcoding `PROVIDER_GOOGLE` on iOS to avoid startup crashes if API keys are missing. Fallback to Apple Maps natively on iOS.
+- **Decision Logs:** Always write decision logs for major project decisions (e.g., choice of local database, encryption libraries, and migration flow patterns) to preserve architectural context.
+
 
 
 ## Commands
