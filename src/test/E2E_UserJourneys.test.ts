@@ -24,7 +24,6 @@ describe('E2E User Journeys (Simulated)', () => {
       await database.get<Pin>('pins').create((p) => {
         p.name = 'Alex at Coffee Shop';
         p.lat = 52.52; p.lng = 13.40;
-        p.userId = 'u1';
       });
     });
 
@@ -50,7 +49,7 @@ describe('E2E User Journeys (Simulated)', () => {
     await database.write(async () => {
       pin = await database.get<Pin>('pins').create((p) => {
         p.name = 'Original Name';
-        p.lat = 0; p.lng = 0; p.userId = 'u1';
+        p.lat = 0; p.lng = 0;
       });
     });
 

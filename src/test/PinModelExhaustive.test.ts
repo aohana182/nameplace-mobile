@@ -22,7 +22,6 @@ describe('Pin Model Exhaustive', () => {
         p.name = 'Old Name';
         p.lat = 0;
         p.lng = 0;
-        p.userId = 'u1';
       });
       await pin.update((p: any) => {
         p.name = 'New Name';
@@ -38,7 +37,6 @@ describe('Pin Model Exhaustive', () => {
         p.name = 'To Delete';
         p.lat = 0;
         p.lng = 0;
-        p.userId = 'u1';
       });
       await pin.markAsDeleted();
     });
@@ -53,7 +51,6 @@ describe('Pin Model Exhaustive', () => {
         p.name = 'No Desc';
         p.lat = 0;
         p.lng = 0;
-        p.userId = 'u1';
       });
     });
     expect(pin.description).toBe(null);

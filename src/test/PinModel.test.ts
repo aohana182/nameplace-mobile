@@ -28,7 +28,6 @@ describe('Pin Model', () => {
         p.name = 'Test Pin';
         p.lat = 10;
         p.lng = 20;
-        p.userId = 'user-1';
       });
     });
 

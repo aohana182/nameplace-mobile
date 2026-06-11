@@ -22,14 +22,12 @@ describe('Tag and PinTag Models Unit & Regression Tests', () => {
         t.name = 'Close Friend';
         t.color = '#FF0000';
         t.isSystem = false;
-        t.userId = null;
       });
     });
 
     expect(tag.name).toBe('Close Friend');
     expect(tag.color).toBe('#FF0000');
     expect(tag.isSystem).toBe(false);
-    expect(tag.userId).toBeNull();
   });
 
   it('links and reads PinTag relationships correctly (unit/regression)', async () => {
@@ -41,20 +39,17 @@ describe('Tag and PinTag Models Unit & Regression Tests', () => {
       pin = await database.get<Pin>('pins').create((p) => {
         p.name = 'Networking Contact';
         p.lat = 37.77; p.lng = -122.41;
-        p.userId = 'anonymous';
       });
 
       tag = await database.get<Tag>('tags').create((t) => {
         t.name = 'Conference';
         t.color = '#00FF00';
         t.isSystem = false;
-        t.userId = null;
       });
 
       pinTag = await database.get<PinTag>('pin_tags').create((pt) => {
         pt.pin.set(pin);
         pt.tag.set(tag);
-        pt.userId = 'anonymous';
       });
     });
 
@@ -76,20 +71,17 @@ describe('Tag and PinTag Models Unit & Regression Tests', () => {
       pin = await database.get<Pin>('pins').create((p) => {
         p.name = 'Alice';
         p.lat = 0; p.lng = 0;
-        p.userId = 'anonymous';
       });
 
       tag = await database.get<Tag>('tags').create((t) => {
         t.name = 'Delete Me';
         t.color = '#FFF';
         t.isSystem = false;
-        t.userId = null;
       });
 
       await database.get<PinTag>('pin_tags').create((pt) => {
         pt.pin.set(pin);
         pt.tag.set(tag);
-        pt.userId = 'anonymous';
       });
     });
 

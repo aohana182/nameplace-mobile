@@ -23,7 +23,6 @@ async function testSeedSystemTagsIfEmpty(db: Database) {
           t.name = tagData.name;
           t.color = tagData.color;
           t.isSystem = tagData.isSystem;
-          t.userId = null;
         })
       );
       
@@ -80,11 +79,9 @@ describe('v1 Local-Only Functional Verification (TC-TAG-01, TC-DATA-03, TC-FLTR-
       const newPin = await pinsCollection.create((p) => {
         p.name = 'Atomic Pin';
         p.lat = 10; p.lng = 20;
-        p.userId = 'anonymous';
       });
       await pinTagsCollection.create((pt) => {
         pt.pin.set(newPin);
-        pt.userId = 'anonymous';
       });
     });
     
@@ -107,11 +104,11 @@ describe('v1 Local-Only Functional Verification (TC-TAG-01, TC-DATA-03, TC-FLTR-
       tagWork = await tagsCollection.create(t => { t.name = 'Work'; t.color = 'red'; t.isSystem = false; });
       tagFriend = await tagsCollection.create(t => { t.name = 'Friend'; t.color = 'blue'; t.isSystem = false; });
       
-      pinA = await pinsCollection.create(p => { p.name = 'Pin A'; p.lat = 1; p.lng = 1; p.userId = 'anonymous'; });
-      pinB = await pinsCollection.create(p => { p.name = 'Pin B'; p.lat = 2; p.lng = 2; p.userId = 'anonymous'; });
-      
-      await pinTagsCollection.create(pt => { pt.pin.set(pinA); pt.tag.set(tagWork); pt.userId = 'anonymous'; });
-      await pinTagsCollection.create(pt => { pt.pin.set(pinB); pt.tag.set(tagFriend); pt.userId = 'anonymous'; });
+      pinA = await pinsCollection.create(p => { p.name = 'Pin A'; p.lat = 1; p.lng = 1; });
+      pinB = await pinsCollection.create(p => { p.name = 'Pin B'; p.lat = 2; p.lng = 2; });
+
+      await pinTagsCollection.create(pt => { pt.pin.set(pinA); pt.tag.set(tagWork); });
+      await pinTagsCollection.create(pt => { pt.pin.set(pinB); pt.tag.set(tagFriend); });
     });
     
     // 2. Query with 'Work' filter active

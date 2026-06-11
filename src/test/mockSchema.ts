@@ -10,7 +10,6 @@ export const schema = appSchema({
         { name: 'description', type: 'string', isOptional: true },
         { name: 'lat', type: 'number' },
         { name: 'lng', type: 'number' },
-        { name: 'user_id', type: 'string', isIndexed: true },
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
       ],
@@ -21,7 +20,6 @@ export const schema = appSchema({
         { name: 'name', type: 'string' },
         { name: 'color', type: 'string' },
         { name: 'is_system', type: 'boolean' },
-        { name: 'user_id', type: 'string', isIndexed: true, isOptional: true },
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
       ],
@@ -31,7 +29,6 @@ export const schema = appSchema({
       columns: [
         { name: 'pin_id', type: 'string', isIndexed: true },
         { name: 'tag_id', type: 'string', isIndexed: true },
-        { name: 'user_id', type: 'string', isIndexed: true },
       ],
     }),
   ],

@@ -19,7 +19,6 @@ export async function seedSystemTagsIfEmpty() {
             t.name = tagData.name;
             t.color = tagData.color;
             t.isSystem = tagData.isSystem;
-            t.userId = null; // No user ID scoping in local-only v1
           })
         );
         
