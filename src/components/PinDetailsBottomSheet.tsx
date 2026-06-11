@@ -83,7 +83,6 @@ export const PinDetailsBottomSheet = ({ pin, onClose, allTags, pinTags }: PinDet
         return pinTagsCollection.prepareCreate((pt: PinTag) => {
           pt.pin.set(pin);
           pt.tag.set(tagRecord!);
-          pt.userId = 'anonymous';
         });
       });
 
@@ -125,7 +124,6 @@ export const PinDetailsBottomSheet = ({ pin, onClose, allTags, pinTags }: PinDet
         t.name = newTagName.trim();
         t.color = newTagColor;
         t.isSystem = false;
-        t.userId = null;
       });
     });
 

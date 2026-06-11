@@ -33,7 +33,7 @@ describe('LocationService', () => {
     jest.useFakeTimers();
     const locPromise = getCurrentLocation();
     
-    jest.advanceTimersByTime(5000);
+    jest.advanceTimersByTime(10000);
     const loc = await locPromise;
     
     expect(loc).toEqual({ latitude: 30, longitude: 40 });

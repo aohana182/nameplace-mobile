@@ -34,11 +34,10 @@ describe('Pin Tag Relations Integration: Edit Deltas', () => {
       pin = await pinsCollection.create(p => {
         p.name = 'Barista Alex';
         p.lat = 52.5; p.lng = 13.4;
-        p.userId = 'anonymous';
       });
 
-      await pinTagsCollection.create(pt => { pt.pin.set(pin); pt.tag.set(tagA); pt.userId = 'anonymous'; });
-      await pinTagsCollection.create(pt => { pt.pin.set(pin); pt.tag.set(tagB); pt.userId = 'anonymous'; });
+      await pinTagsCollection.create(pt => { pt.pin.set(pin); pt.tag.set(tagA); });
+      await pinTagsCollection.create(pt => { pt.pin.set(pin); pt.tag.set(tagB); });
     });
 
     // Verify initial state
@@ -70,7 +69,6 @@ describe('Pin Tag Relations Integration: Edit Deltas', () => {
         return pinTagsCollection.prepareCreate((pt: PinTag) => {
           pt.pin.set(pin);
           pt.tag.set(tagRecord!);
-          pt.userId = 'anonymous';
         });
       });
 

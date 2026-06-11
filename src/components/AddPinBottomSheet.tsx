@@ -49,7 +49,6 @@ export const AddPinBottomSheet = ({ location, onClose, tags }: AddPinBottomSheet
         pin.description = description;
         pin.lat = location.latitude;
         pin.lng = location.longitude;
-        pin.userId = 'anonymous'; // Default for local-only v1
       });
 
       // 2. Create PinTag relations
@@ -59,7 +58,6 @@ export const AddPinBottomSheet = ({ location, onClose, tags }: AddPinBottomSheet
         return pinTagsCollection.prepareCreate((pt: PinTag) => {
           pt.pin.set(newPin);
           pt.tag.set(tagRecord!);
-          pt.userId = 'anonymous';
         });
       });
 
@@ -81,7 +79,6 @@ export const AddPinBottomSheet = ({ location, onClose, tags }: AddPinBottomSheet
         t.name = newTagName.trim();
         t.color = newTagColor;
         t.isSystem = false;
-        t.userId = null;
       });
     });
 

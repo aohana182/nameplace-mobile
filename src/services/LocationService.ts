@@ -9,13 +9,13 @@ export const requestLocationPermissions = async () => {
 
 export const getCurrentLocation = async () => {
   try {
-    // Race the current position request against a 5-second timeout
+    // PRD R1.2: race the current position request against a 10-second timeout
     const locationPromise = Location.getCurrentPositionAsync({
       accuracy: Location.Accuracy.Balanced,
     });
-    
-    const timeoutPromise = new Promise<null>((resolve) => 
-      setTimeout(() => resolve(null), 5000)
+
+    const timeoutPromise = new Promise<null>((resolve) =>
+      setTimeout(() => resolve(null), 10000)
     );
 
     const result = await Promise.race([locationPromise, timeoutPromise]);
