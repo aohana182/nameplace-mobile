@@ -11,7 +11,22 @@
 - `user_id` arrives properly in v2 via schema v3 migration, not before.
 
 **Open / Next:**
-- **Blocker:** real `GOOGLE_MAPS_API_KEY` needed in `.env` (GCP project + billing + Maps SDK for Android + key restricted to package/SHA-1), then `npx expo prebuild --clean`. Until then the Android map renders blank.
+- **TODO:** GCP key (`AIzaSyCM9...`) currently has API restriction (Maps SDK for Android) but NO application restriction (package name + SHA-1). Must add: Android app restriction → `com.ao18277.nameplacemobile` + debug SHA-1 before any public/production use.
 - Migration footgun: schema bump without `schemaMigrations` wipes local DB — must add migrations before v3.
-- On-device verification of the map flow is impossible from this machine (needs emulator/device + real key); jest + tsc are the verified gates.
 - Pre-existing jest warning: "worker process failed to exit gracefully" (LokiJS teardown) — cosmetic, not a failure.
+
+### 2026-06-18 — Build environment unblocked, APK running on S24
+
+**What:** Resolved full Android build chain from scratch (no Android Studio). Installed JDK 21 (Microsoft OpenJDK via winget), Android SDK command-line tools, platform-tools, build-tools 35.0.0, NDK 27.1.12297006. APK built and installed on Samsung S24 via adb.
+
+**Gradle version fix (MUST reapply after every `npx expo prebuild --clean`):**
+- Expo 56 prebuild generates Gradle 9.3.1, but foojay 0.5.0 (bundled in `@react-native/gradle-plugin`) crashes on Gradle 9.x — it references `JvmVendorSpec.IBM_SEMERU` which was removed in Gradle 9.0.
+- AGP 8.12.0 requires Gradle ≥ 8.13.
+- Fix: set `distributionUrl=https\://services.gradle.org/distributions/gradle-8.13-bin.zip` in `android/gradle/wrapper/gradle-wrapper.properties`.
+- Since `/android` is gitignored, this change is lost on each prebuild. Must be reapplied manually.
+
+**Local build env:**
+- JDK: `C:\Program Files\Microsoft\jdk-21.0.11.10-hotspot`
+- Android SDK: `C:\Users\avioh\Android` (ANDROID_HOME)
+- Build: `cd android && gradlew.bat app:assembleDebug` (set JAVA_HOME first)
+- Install: `adb install android\app\build\outputs\apk\debug\app-debug.apk`
