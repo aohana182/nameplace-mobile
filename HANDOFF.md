@@ -45,7 +45,20 @@ We have integrated the following diagnostics guidelines into the project:
 
 ---
 
-## 6. Next Steps (v2 E2EE Backup Implementation Plan)
+## 6. Known Bugs Fixed (Session 2026-06-18)
+
+### Bug: App crash on open — `Unable to load script`
+**Cause:** Debug build on device requires Metro running + `adb reverse tcp:8081 tcp:8081` for USB.
+**Resolution:** This is a dev workflow issue, not a code bug. Always start Metro before opening the debug build.
+
+### Bug: `Cannot assign to read-only property 'NONE'` (Log 1 of 3)
+**Cause:** RN 0.85 added `Object.defineProperty` to lock `Event.NONE`, `CAPTURING_PHASE`, `AT_TARGET`, `BUBBLING_PHASE` as non-writable on `Event.prototype`. Babel then compiles the Flow instance-field annotations (`+NONE: 0` etc.) inside the `Event` class body into constructor-time assignments (`this.NONE = undefined`), which hit the non-writable prototype property and throw a strict-mode TypeError. This fires every time a WebSocket event is dispatched (i.e. on every HMR event or Metro connection open).
+**Fix:** Removed the 4 redundant instance-field declarations from `Event.js`. The `Object.defineProperty` calls on the prototype already expose these constants on instances.
+**Patch:** `patches/react-native+0.85.3.patch` — applied automatically via `postinstall: patch-package`.
+
+---
+
+## 7. Next Steps (v2 E2EE Backup Implementation Plan)
 
 1.  **Install E2EE Dependencies:**
     ```bash
