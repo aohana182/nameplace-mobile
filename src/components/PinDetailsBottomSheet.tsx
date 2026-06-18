@@ -1,6 +1,17 @@
-import React, { useMemo, useRef, useState, useCallback, useEffect } from 'react';
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, Alert } from 'react-native';
-import BottomSheet, { BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
+import React, { useState, useEffect } from 'react';
+import {
+  StyleSheet,
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  Alert,
+  Modal,
+  Pressable,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
 import Pin from '../model/Pin';
 import Tag from '../model/Tag';
 import PinTag from '../model/PinTag';
@@ -33,22 +44,16 @@ export const PinDetailsBottomSheet = ({ pin, onClose, allTags, pinTags }: PinDet
   const [name, setName] = useState(pin.name);
   const [description, setDescription] = useState(pin.description || '');
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
-  
-  // Custom Tag creation state inside Details sheet
+
   const [showTagCreator, setShowTagCreator] = useState(false);
   const [newTagName, setNewTagName] = useState('');
   const [newTagColor, setNewTagColor] = useState(PALETTE_COLORS[0]);
 
-  const bottomSheetRef = useRef<BottomSheet>(null);
-  const snapPoints = useMemo(() => ['40%', '80%'], []);
-
-  // Update component inputs when the observed pin changes
   useEffect(() => {
     setName(pin.name);
     setDescription(pin.description || '');
   }, [pin]);
 
-  // Sync selected tag state when pinTags or editing state changes
   useEffect(() => {
     if (pinTags) {
       setSelectedTagIds(pinTags.map(t => t.id));
@@ -59,24 +64,21 @@ export const PinDetailsBottomSheet = ({ pin, onClose, allTags, pinTags }: PinDet
     if (!name.trim()) return;
 
     await database.write(async () => {
-      // 1. Update Pin details
       await pin.update((p: Pin) => {
         p.name = name.trim();
         p.description = description.trim();
       });
 
-      // 2. Fetch current relation rows in pin_tags for this pin
       const currentRelations = await database.get<PinTag>('pin_tags')
         .query(Q.where('pin_id', pin.id))
         .fetch();
 
-      // 3. Diff and update relationships
       const relationsToDelete = currentRelations.filter(r => !selectedTagIds.includes(r.tag.id));
       const currentTagIds = currentRelations.map(r => r.tag.id);
       const tagIdsToAdd = selectedTagIds.filter(id => !currentTagIds.includes(id));
 
       const deletes = relationsToDelete.map(r => r.prepareDestroyPermanently());
-      
+
       const pinTagsCollection = database.get<PinTag>('pin_tags');
       const creates = tagIdsToAdd.map(tagId => {
         const tagRecord = allTags.find(t => t.id === tagId);
@@ -104,7 +106,7 @@ export const PinDetailsBottomSheet = ({ pin, onClose, allTags, pinTags }: PinDet
             const relations = await database.get<PinTag>('pin_tags')
               .query(Q.where('pin_id', pin.id))
               .fetch();
-            
+
             const deletes = relations.map(r => r.prepareDestroyPermanently());
             await database.batch(...deletes);
             await pin.destroyPermanently();
@@ -139,198 +141,221 @@ export const PinDetailsBottomSheet = ({ pin, onClose, allTags, pinTags }: PinDet
     );
   };
 
-  const renderBackdrop = useCallback(
-    (props: any) => (
-      <BottomSheetBackdrop
-        {...props}
-        disappearsOnIndex={-1}
-        appearsOnIndex={0}
-        pressBehavior="none"
-      />
-    ),
-    []
-  );
-
   return (
-    <BottomSheet
-      ref={bottomSheetRef}
-      index={0}
-      snapPoints={snapPoints}
-      onClose={onClose}
-      onChange={(i) => console.log('[NP] Details sheet onChange index=', i)}
-      onAnimate={(from, to) => console.log('[NP] Details sheet onAnimate', from, '->', to)}
-      enablePanDownToClose
-      backdropComponent={renderBackdrop}
-    >
-      <BottomSheetScrollView contentContainerStyle={styles.contentContainer}>
-        <View style={styles.header}>
-          {isEditing ? (
-            <TextInput
-              style={styles.titleInput}
-              value={name}
-              onChangeText={setName}
-              autoFocus
-            />
-          ) : (
-            <Text style={styles.title}>{pin.name}</Text>
-          )}
-          <View style={styles.actions}>
-            {isEditing ? (
-              <>
-                <TouchableOpacity onPress={handleUpdate} activeOpacity={0.8} style={[styles.actionButton, { backgroundColor: '#ECFDF5' }]}>
-                  <Check size={20} color="#059669" />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => setIsEditing(false)} activeOpacity={0.8} style={[styles.actionButton, { backgroundColor: '#F1F5F9' }]}>
-                  <X size={20} color="#475569" />
-                </TouchableOpacity>
-              </>
-            ) : (
-              <>
-                <TouchableOpacity onPress={() => setIsEditing(true)} activeOpacity={0.8} style={[styles.actionButton, { backgroundColor: '#EFF6FF' }]}>
-                  <Edit3 size={20} color="#2563EB" />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={handleDelete} activeOpacity={0.8} style={[styles.actionButton, { backgroundColor: '#FEF2F2' }]}>
-                  <Trash2 size={20} color="#DC2626" />
-                </TouchableOpacity>
-              </>
-            )}
-          </View>
-        </View>
-
-        {isEditing ? (
-          <TextInput
-            style={styles.descriptionInput}
-            value={description}
-            onChangeText={setDescription}
-            placeholder="Add notes about your connection..."
-            multiline
-            numberOfLines={4}
-          />
-        ) : (
-          <Text style={styles.description}>{pin.description || 'No notes added yet.'}</Text>
-        )}
-
-        {/* Tags Section */}
-        <View style={styles.tagsSection}>
-          <View style={styles.tagsHeader}>
-            <Text style={styles.label}>{isEditing ? 'Edit Tags' : 'Tags'}</Text>
-            {isEditing && (
-              <TouchableOpacity
-                style={styles.addTagButton}
-                activeOpacity={0.8}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setShowTagCreator(!showTagCreator);
-                }}
-              >
-                <Plus size={16} color="#2563EB" />
-                <Text style={styles.addTagButtonText}>New Tag</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {/* Inline Tag Creator (Edit Mode) */}
-          {isEditing && showTagCreator && (
-            <View style={styles.tagCreatorPanel}>
-              <TextInput
-                style={styles.tagInput}
-                placeholder="Custom tag name (e.g. Mentor)"
-                value={newTagName}
-                onChangeText={setNewTagName}
-              />
-              <View style={styles.colorPalette}>
-                {PALETTE_COLORS.map(color => (
-                  <TouchableOpacity
-                    key={color}
-                    activeOpacity={0.8}
-                    style={[
-                      styles.colorOption,
-                      { backgroundColor: color },
-                      newTagColor === color && styles.selectedColorOption,
-                    ]}
-                    onPress={() => setNewTagColor(color)}
-                  >
-                    {newTagColor === color && <Check size={14} color="white" />}
-                  </TouchableOpacity>
-                ))}
-              </View>
-              <View style={styles.creatorActions}>
-                <TouchableOpacity
-                  style={[styles.smallButton, { backgroundColor: '#2563EB' }]}
-                  activeOpacity={0.8}
-                  onPress={handleCreateCustomTag}
-                >
-                  <Text style={styles.buttonTextSmall}>Create</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.smallButton, { backgroundColor: '#E2E8F0' }]}
-                  activeOpacity={0.8}
-                  onPress={() => setShowTagCreator(false)}
-                >
-                  <Text style={[styles.buttonTextSmall, { color: '#475569' }]}>Cancel</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-
-          {/* Badges Layout */}
-          <View style={styles.tagsContainer}>
-            {isEditing ? (
-              allTags.map(tag => {
-                const isSelected = selectedTagIds.includes(tag.id);
-                return (
-                  <TouchableOpacity
-                    key={tag.id}
-                    activeOpacity={0.8}
-                    style={[
-                      styles.tagBadge,
-                      isSelected
-                        ? { backgroundColor: tag.color, borderColor: tag.color }
-                        : { backgroundColor: 'white', borderColor: tag.color },
-                    ]}
-                    onPress={() => toggleTagSelection(tag.id)}
-                  >
-                    <Text
-                      style={[
-                        styles.tagBadgeText,
-                        isSelected ? { color: 'white' } : { color: tag.color },
-                      ]}
-                    >
-                      {tag.name}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })
-            ) : pinTags.length > 0 ? (
-              pinTags.map(tag => (
-                <View
-                  key={tag.id}
-                  style={[styles.tagBadgeView, { backgroundColor: tag.color + '1A', borderColor: tag.color }]}
-                >
-                  <Text style={[styles.tagBadgeText, { color: tag.color }]}>{tag.name}</Text>
+    <Modal visible transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
+      <View style={styles.overlay}>
+        <Pressable style={styles.backdrop} onPress={onClose} />
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.sheetWrapper}
+        >
+          <View style={styles.sheet}>
+            <View style={styles.handle} />
+            <ScrollView
+              contentContainerStyle={styles.contentContainer}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.header}>
+                {isEditing ? (
+                  <TextInput
+                    style={styles.titleInput}
+                    value={name}
+                    onChangeText={setName}
+                    autoFocus
+                  />
+                ) : (
+                  <Text style={styles.title}>{pin.name}</Text>
+                )}
+                <View style={styles.actions}>
+                  {isEditing ? (
+                    <>
+                      <TouchableOpacity onPress={handleUpdate} activeOpacity={0.8} style={[styles.actionButton, { backgroundColor: '#ECFDF5' }]}>
+                        <Check size={20} color="#059669" />
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => setIsEditing(false)} activeOpacity={0.8} style={[styles.actionButton, { backgroundColor: '#F1F5F9' }]}>
+                        <X size={20} color="#475569" />
+                      </TouchableOpacity>
+                    </>
+                  ) : (
+                    <>
+                      <TouchableOpacity onPress={() => setIsEditing(true)} activeOpacity={0.8} style={[styles.actionButton, { backgroundColor: '#EFF6FF' }]}>
+                        <Edit3 size={20} color="#2563EB" />
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={handleDelete} activeOpacity={0.8} style={[styles.actionButton, { backgroundColor: '#FEF2F2' }]}>
+                        <Trash2 size={20} color="#DC2626" />
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={onClose} activeOpacity={0.8} style={[styles.actionButton, { backgroundColor: '#F1F5F9' }]}>
+                        <X size={20} color="#475569" />
+                      </TouchableOpacity>
+                    </>
+                  )}
                 </View>
-              ))
-            ) : (
-              <Text style={styles.noTagsText}>No tags attached to this pin.</Text>
-            )}
-          </View>
-        </View>
+              </View>
 
-        {!isEditing && (
-          <Text style={styles.timestamp}>
-            Added on {new Date(pin.createdAt).toLocaleDateString()}
-          </Text>
-        )}
-      </BottomSheetScrollView>
-    </BottomSheet>
+              {isEditing ? (
+                <TextInput
+                  style={styles.descriptionInput}
+                  value={description}
+                  onChangeText={setDescription}
+                  placeholder="Add notes about your connection..."
+                  multiline
+                  numberOfLines={4}
+                />
+              ) : (
+                <Text style={styles.description}>{pin.description || 'No notes added yet.'}</Text>
+              )}
+
+              <View style={styles.tagsSection}>
+                <View style={styles.tagsHeader}>
+                  <Text style={styles.label}>{isEditing ? 'Edit Tags' : 'Tags'}</Text>
+                  {isEditing && (
+                    <TouchableOpacity
+                      style={styles.addTagButton}
+                      activeOpacity={0.8}
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        setShowTagCreator(!showTagCreator);
+                      }}
+                    >
+                      <Plus size={16} color="#2563EB" />
+                      <Text style={styles.addTagButtonText}>New Tag</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                {isEditing && showTagCreator && (
+                  <View style={styles.tagCreatorPanel}>
+                    <TextInput
+                      style={styles.tagInput}
+                      placeholder="Custom tag name (e.g. Mentor)"
+                      value={newTagName}
+                      onChangeText={setNewTagName}
+                    />
+                    <View style={styles.colorPalette}>
+                      {PALETTE_COLORS.map(color => (
+                        <TouchableOpacity
+                          key={color}
+                          activeOpacity={0.8}
+                          style={[
+                            styles.colorOption,
+                            { backgroundColor: color },
+                            newTagColor === color && styles.selectedColorOption,
+                          ]}
+                          onPress={() => setNewTagColor(color)}
+                        >
+                          {newTagColor === color && <Check size={14} color="white" />}
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                    <View style={styles.creatorActions}>
+                      <TouchableOpacity
+                        style={[styles.smallButton, { backgroundColor: '#2563EB' }]}
+                        activeOpacity={0.8}
+                        onPress={handleCreateCustomTag}
+                      >
+                        <Text style={styles.buttonTextSmall}>Create</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.smallButton, { backgroundColor: '#E2E8F0' }]}
+                        activeOpacity={0.8}
+                        onPress={() => setShowTagCreator(false)}
+                      >
+                        <Text style={[styles.buttonTextSmall, { color: '#475569' }]}>Cancel</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+
+                <View style={styles.tagsContainer}>
+                  {isEditing ? (
+                    allTags.map(tag => {
+                      const isSelected = selectedTagIds.includes(tag.id);
+                      return (
+                        <TouchableOpacity
+                          key={tag.id}
+                          activeOpacity={0.8}
+                          style={[
+                            styles.tagBadge,
+                            isSelected
+                              ? { backgroundColor: tag.color, borderColor: tag.color }
+                              : { backgroundColor: 'white', borderColor: tag.color },
+                          ]}
+                          onPress={() => toggleTagSelection(tag.id)}
+                        >
+                          <Text
+                            style={[
+                              styles.tagBadgeText,
+                              isSelected ? { color: 'white' } : { color: tag.color },
+                            ]}
+                          >
+                            {tag.name}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })
+                  ) : pinTags.length > 0 ? (
+                    pinTags.map(tag => (
+                      <View
+                        key={tag.id}
+                        style={[styles.tagBadgeView, { backgroundColor: tag.color + '1A', borderColor: tag.color }]}
+                      >
+                        <Text style={[styles.tagBadgeText, { color: tag.color }]}>{tag.name}</Text>
+                      </View>
+                    ))
+                  ) : (
+                    <Text style={styles.noTagsText}>No tags attached to this pin.</Text>
+                  )}
+                </View>
+              </View>
+
+              {!isEditing && (
+                <Text style={styles.timestamp}>
+                  Added on {new Date(pin.createdAt).toLocaleDateString()}
+                </Text>
+              )}
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </View>
+    </Modal>
   );
 };
 
 const styles = StyleSheet.create({
-  contentContainer: {
-    padding: 24,
-    paddingBottom: 48,
+  overlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(15, 23, 42, 0.4)',
+  },
+  backdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  sheetWrapper: {
+    width: '100%',
+  },
+  sheet: {
     backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '90%',
+    paddingTop: 8,
+  },
+  handle: {
+    alignSelf: 'center',
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#CBD5E1',
+    marginBottom: 8,
+  },
+  contentContainer: {
+    paddingHorizontal: 24,
+    paddingBottom: 48,
   },
   header: {
     flexDirection: 'row',
