@@ -60,4 +60,11 @@
 - **SECURITY:** `.env` is git-tracked with Supabase anon key + Google Maps key. Add to `.gitignore`, provide `.env.example`, consider scrubbing history. (Maps key is already in the app manifest, so lower urgency, but anon key shouldn't be in VCS.)
 - Process lesson: for native/runtime bugs, instrument + read device logs before changing code. Three rounds were wasted guessing.
 
-### 2026-06-18 — Next milestone: Google Play Store packaging (assets + production build)
+### NEXT TODO — Google Play Store packaging (assets + production build)
+
+Not started. Packaging the app for Play Store submission with store assets.
+Decisions to settle at start (permanent ones first): final package name
+(current `com.ao18277.nameplacemobile` is auto-generated), build method
+(EAS cloud AAB vs local), Play Console account status. Also blockers already
+on file: set `android.versionCode`, add GCP Maps key app-restriction with the
+release SHA-1, privacy policy (location permission), Data Safety form.
