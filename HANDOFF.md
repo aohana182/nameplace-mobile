@@ -51,10 +51,16 @@ We have integrated the following diagnostics guidelines into the project:
 **Cause:** Debug build on device requires Metro running + `adb reverse tcp:8081 tcp:8081` for USB.
 **Resolution:** This is a dev workflow issue, not a code bug. Always start Metro before opening the debug build.
 
-### Bug: `Cannot assign to read-only property 'NONE'` (Log 1 of 3)
-**Cause:** RN 0.85 added `Object.defineProperty` to lock `Event.NONE`, `CAPTURING_PHASE`, `AT_TARGET`, `BUBBLING_PHASE` as non-writable on `Event.prototype`. Babel then compiles the Flow instance-field annotations (`+NONE: 0` etc.) inside the `Event` class body into constructor-time assignments (`this.NONE = undefined`), which hit the non-writable prototype property and throw a strict-mode TypeError. This fires every time a WebSocket event is dispatched (i.e. on every HMR event or Metro connection open).
-**Fix:** Removed the 4 redundant instance-field declarations from `Event.js`. The `Object.defineProperty` calls on the prototype already expose these constants on instances.
-**Patch:** `patches/react-native+0.85.3.patch` — applied automatically via `postinstall: patch-package`.
+### Bug: `Cannot assign to read-only property` — RN 0.85 non-writable prototype clash
+**Root cause (same in two files):** RN 0.85 uses `Object.defineProperty(Class.prototype, 'PROP', { value: X })` — no `writable: true`, so `writable` defaults to `false`. Babel compiles Flow instance-field annotations (`+PROP: value;` in the class body) into constructor assignments (`this.PROP = value`). In Hermes strict mode, assigning to a non-writable prototype property throws a TypeError.
+
+**Affected files (both patched):**
+- `Event.js` — constants `NONE`, `CAPTURING_PHASE`, `AT_TARGET`, `BUBBLING_PHASE`. Fires on every `new Event(...)` construction (WebSocket open, long press, any DOM event dispatch).
+- `DOMException.js` — 25 error code constants (`INDEX_SIZE_ERR` etc.). Fires whenever a `DOMException` is constructed.
+
+**Fix:** Removed all instance-level Flow annotations from both class bodies. The `Object.defineProperty` calls on the prototype already make these accessible on instances.
+**Patch:** `patches/react-native+0.85.3.patch` — covers both files, applied automatically via `postinstall: patch-package`.
+**After any patch change:** always restart Metro with `npx expo start --clear` — Metro caches Babel transforms per file and will serve stale output otherwise.
 
 ---
 
