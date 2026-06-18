@@ -10,7 +10,7 @@ import PinTag from '../model/PinTag';
 import { requestLocationPermissions, getCurrentLocation } from '../services/LocationService';
 import AddPinBottomSheet from '../components/AddPinBottomSheet';
 import PinDetailsBottomSheet from '../components/PinDetailsBottomSheet';
-import { Navigation, MapPin } from 'lucide-react-native';
+import { Navigation } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
 interface MapScreenProps {
@@ -101,25 +101,19 @@ const EnhancedMapScreen = ({
         showsUserLocation
         showsMyLocationButton={false}
       >
-        {pins.map((pin) => {
-          const pinColor = getPinColor(pin.id);
-          return (
-            <Marker
-              key={pin.id}
-              coordinate={{ latitude: pin.lat, longitude: pin.lng }}
-              onPress={() => {
-                Haptics.selectionAsync();
-                setActivePin(pin);
-              }}
-            >
-              <MapPin size={36} color={pinColor} fill={pinColor} />
-            </Marker>
-          );
-        })}
+        {pins.map((pin) => (
+          <Marker
+            key={pin.id}
+            coordinate={{ latitude: pin.lat, longitude: pin.lng }}
+            pinColor={getPinColor(pin.id)}
+            onPress={() => {
+              Haptics.selectionAsync();
+              setActivePin(pin);
+            }}
+          />
+        ))}
         {selectedLocation && (
-          <Marker coordinate={selectedLocation}>
-            <MapPin size={36} color="#10B981" fill="#10B981" />
-          </Marker>
+          <Marker coordinate={selectedLocation} pinColor="#10B981" />
         )}
       </MapView>
 

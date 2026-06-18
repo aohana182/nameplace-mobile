@@ -39,7 +39,8 @@
         {
           "locationAlwaysAndWhenInUsePermission": "Allow Nameplace to use your location to pin connections."
         }
-      ]
+      ],
+      "./plugins/withNewArchDisabled"
     ],
     "extra": {
       "eas": {
