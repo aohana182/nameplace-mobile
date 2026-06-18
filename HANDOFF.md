@@ -4,6 +4,47 @@ This file documents the status, architectural decisions, and next steps for Name
 
 ---
 
+## ⚡ START HERE — Next Session (updated 2026-06-18, Session 3)
+
+**App state: working and verified on device (Samsung S24).** The long-standing
+"pins won't open" bug is fixed for real this session. All pins open, panels stay
+open, add-pin works, keyboard no longer covers the modal.
+
+**What was actually wrong (and how it was fixed):**
+- Pin taps were fine once moved to a single **`MapView.onMarkerPress`** listener
+  (`event.nativeEvent.id`); per-`<Marker>` `onPress` is unreliable under Fabric.
+- The real failure was **`@gorhom/bottom-sheet` v5 self-dismissing ~1–2s after
+  opening** on the Reanimated 4.4 / RNGH 3.0 / RN 0.85 (Fabric) stack — proven via
+  `adb logcat` (`onAnimate 0→-1` with no input). **Replaced gorhom with React
+  Native's built-in `Modal`** in both panels; a Modal can't auto-close.
+- Section 7 below (earlier "marker onPress RESOLVED" via useCallback/pointerEvents)
+  was a **wrong diagnosis** — those changes did not fix it. Kept here for history only.
+
+**Process lesson:** for native/runtime bugs, instrument with logs and read the
+device logcat to get ground truth *before* editing. Multiple rounds were wasted guessing.
+
+**Git / security status:**
+- Local `master` is **8 commits ahead of `origin/master` (UNPUSHED)**. Latest:
+  `9ed0de2` (next TODO) ← `e509d7c` (changelog/memory) ← `8aefe6b` (Modal fix)
+  ← `3006353` (onMarkerPress checkpoint).
+- ✅ Remote GitHub is clean: `.env` is **not** on `origin/master` (no keys leaked).
+- ⚠️ **DO NOT `git push` until `.env` is untracked** — local `HEAD` tracks `.env`
+  (Supabase anon key inside), so a push would leak it. First step before any push:
+  `git rm --cached .env` + add to `.gitignore` + create `.env.example`.
+- ⚠️ A GitHub PAT is embedded in the local `origin` remote URL (`.git/config`) —
+  local-only, but rotate it when convenient.
+
+**Next task (not started): Google Play Store packaging + assets.** See `memory.md`
+"NEXT TODO". Settle permanent decisions first: final package name (current
+`com.ao18277.nameplacemobile` is auto-generated), build method (EAS cloud AAB vs
+local), Play Console account. Also: set `android.versionCode`, GCP Maps key
+app-restriction with release SHA-1, privacy policy (location), Data Safety form.
+
+**Cleanup candidate:** `@gorhom/bottom-sheet` is no longer imported in `src/`
+(remove from `package.json` + the dead jest mock in `UIComponentRendering.test.tsx`).
+
+---
+
 ## 1. Project Status & Milestone Completion
 
 ### v1 (Local-Only SQLite) — 100% Completed
@@ -34,14 +75,15 @@ We have integrated the following diagnostics guidelines into the project:
 ---
 
 ## 4. Git Repositories Status
-*   **Local changes:** All v1 changes are staged and committed.
 *   **Current Branch:** `master`
+*   **Local is 8 commits AHEAD of `origin/master` (unpushed).** See "START HERE" for the push caveat (`.env` must be untracked first).
 
 ---
 
 ## 5. Verification & Test Pipeline
-*   **Tests:** 8 suites containing 16 unit, integration, and UI component rendering tests.
-*   **Run command:** `npm run test` (All passing).
+*   **Tests:** 8 suites, **18 tests** (unit, integration, UI component rendering).
+*   **Run command:** `npx jest` / `npm run test` (all 18 passing as of 2026-06-18 Session 3).
+*   **Type check:** `npx tsc --noEmit` clean.
 
 ---
 
@@ -78,7 +120,12 @@ We have integrated the following diagnostics guidelines into the project:
 - **Keyboard dismissal**: `Keyboard.dismiss()` added to `AddPinBottomSheet.handleSave()` so keyboard doesn't persist into `PinDetailsBottomSheet`.
 - **`moveOnMarkerPress={false}`** on MapView: prevents Google Maps camera animation on marker tap, which was consuming subsequent touches.
 
-### Marker `onPress` reliability — RESOLVED (Session 2026-06-18)
+### Marker `onPress` reliability — ⚠️ SUPERSEDED (see Section 7.5 / START HERE)
+
+> **This diagnosis turned out to be WRONG.** The useCallback / `pointerEvents` /
+> useMemo changes below did NOT fix the user-visible bug. The real fix
+> (Session 3) was `MapView.onMarkerPress` + replacing gorhom with native `Modal`.
+> Retained below for history only.
 
 **Previous diagnosis was wrong**: Blamed Fabric/New Architecture, but `withNewArchDisabled` plugin was already disabling it. The real causes were in JS-land, not native.
 
@@ -102,6 +149,31 @@ Fix: Replaced `getPinColor` with a `useMemo`-computed `pinColors: Record<string,
 **Also added:** `identifier={pinId}` on each `<Marker>` for native identification (enables future `onMarkerPress` at the MapView level if needed).
 
 **What was kept from previous session:** `memo` on `PinMarker`, `moveOnMarkerPress={false}`, `pinsRef` pattern for stable `handlePinPress`.
+
+---
+
+## 7.5 Session 3 (2026-06-18 afternoon) — "Pins won't open" RESOLVED
+
+**Symptom:** tapping pins opened the detail panel only intermittently; keyboard
+covered the modal; long-press dropped a pin but no panel appeared.
+
+**Failed attempts (do not repeat):** useCallback/useMemo/`pointerEvents` on markers
+(no effect); custom `<TouchableOpacity>` inside `<Marker>` (broke pins entirely —
+RN renders marker children to a bitmap, touchables inside never get taps; reverted).
+
+**Ground truth via `adb logcat` + `console.log` instrumentation:**
+- After switching to `MapView.onMarkerPress`, every tap fired and matched the
+  correct pin (`event.nativeEvent.id`). Marker dispatch was not the problem.
+- A lone bottom sheet (backdrop disabled, no touch) logged `onAnimate 0 → -1`
+  ~1–2s after opening — i.e. `@gorhom/bottom-sheet` was dismissing itself.
+
+**Fixes (commits `3006353`, `8aefe6b`):**
+1. `MapScreen.tsx`: pin taps via `MapView.onMarkerPress`; native `pinColor`
+   markers; mutual exclusion between add/details panels (only one mounts at a time).
+2. `AddPinBottomSheet.tsx` + `PinDetailsBottomSheet.tsx`: **rewritten on React
+   Native's built-in `Modal`** (+ `KeyboardAvoidingView`). gorhom removed from both.
+
+**Verified:** `tsc` clean, `jest` 18/18, confirmed on Samsung S24 by user.
 
 ---
 
