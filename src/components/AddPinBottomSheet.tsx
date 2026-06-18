@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState, useCallback } from 'react';
-import { StyleSheet, View, Text, TextInput, TouchableOpacity } from 'react-native';
+import { StyleSheet, View, Text, TextInput, TouchableOpacity, Keyboard } from 'react-native';
 import BottomSheet, { BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { database } from '../model/database';
 import Pin from '../model/Pin';
@@ -68,6 +68,7 @@ export const AddPinBottomSheet = ({ location, onClose, tags }: AddPinBottomSheet
     setName('');
     setDescription('');
     setSelectedTagIds([]);
+    Keyboard.dismiss();
     onClose();
   };
 
@@ -100,7 +101,7 @@ export const AddPinBottomSheet = ({ location, onClose, tags }: AddPinBottomSheet
         {...props}
         disappearsOnIndex={-1}
         appearsOnIndex={0}
-        pressBehavior="close"
+        pressBehavior="none"
       />
     ),
     []
@@ -114,6 +115,8 @@ export const AddPinBottomSheet = ({ location, onClose, tags }: AddPinBottomSheet
       index={0}
       snapPoints={snapPoints}
       onClose={onClose}
+      onChange={(i) => console.log('[NP] Add sheet onChange index=', i)}
+      onAnimate={(from, to) => console.log('[NP] Add sheet onAnimate', from, '->', to)}
       enablePanDownToClose
       backdropComponent={renderBackdrop}
     >

@@ -145,7 +145,7 @@ export const PinDetailsBottomSheet = ({ pin, onClose, allTags, pinTags }: PinDet
         {...props}
         disappearsOnIndex={-1}
         appearsOnIndex={0}
-        pressBehavior="close"
+        pressBehavior="none"
       />
     ),
     []
@@ -157,6 +157,8 @@ export const PinDetailsBottomSheet = ({ pin, onClose, allTags, pinTags }: PinDet
       index={0}
       snapPoints={snapPoints}
       onClose={onClose}
+      onChange={(i) => console.log('[NP] Details sheet onChange index=', i)}
+      onAnimate={(from, to) => console.log('[NP] Details sheet onAnimate', from, '->', to)}
       enablePanDownToClose
       backdropComponent={renderBackdrop}
     >

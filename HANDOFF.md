@@ -64,7 +64,48 @@ We have integrated the following diagnostics guidelines into the project:
 
 ---
 
-## 7. Next Steps (v2 E2EE Backup Implementation Plan)
+## 7. Session 2026-06-18 (Session 2) Bug Fixes
+
+### Patches added this session
+- `patches/react-native-maps+1.27.2.patch` — removes TypeScript `!`-suffixed instance field declarations from all 11 map component classes (`MapMarker`, `MapCallout`, etc.). Babel compiles `getNativeComponent!: ...` (no initializer, declaration-only) to `this.getNativeComponent = undefined` in the constructor, which shadows the prototype method injected by `decorateMapComponent`. Fix: removed those 4 lines from MapMarker and 3 lines from all other components.
+- `patches/react-native+0.85.3.patch` — updated to also cover `DOMException.js` (25 instance-level Flow annotations shadowing non-writable prototype constants).
+
+### Dependencies added
+- `@react-native-async-storage/async-storage` — for region persistence. **Requires `npx expo run:android` after install** (native module, Metro hot-reload is not sufficient).
+
+### Features added
+- **Region persistence**: map reopens at the last panned location instead of San Francisco. Saves on `onRegionChangeComplete`, reads on mount from AsyncStorage key `nameplace:lastRegion`.
+- **Keyboard dismissal**: `Keyboard.dismiss()` added to `AddPinBottomSheet.handleSave()` so keyboard doesn't persist into `PinDetailsBottomSheet`.
+- **`moveOnMarkerPress={false}`** on MapView: prevents Google Maps camera animation on marker tap, which was consuming subsequent touches.
+
+### Marker `onPress` reliability — RESOLVED (Session 2026-06-18)
+
+**Previous diagnosis was wrong**: Blamed Fabric/New Architecture, but `withNewArchDisabled` plugin was already disabling it. The real causes were in JS-land, not native.
+
+**Root causes identified and fixed:**
+
+**Bug 1 — Unstable `onPress` closure triggering native bridge flushes**
+`memo` on `PinMarker` prevented the component from re-rendering on unrelated DB changes, but the internal `<Marker onPress={() => onPress(pinId)} />` was still an inline lambda — a new function reference on every `PinMarker` render. Since `Marker` is a `PureComponent`, it saw the new function as a changed prop and scheduled a native prop-update batch. During that bridge flush window, the native Google Maps click listener was briefly unresponsive.
+
+Fix: `useCallback(() => onPress(pinId), [onPress, pinId])` inside `PinMarker`. Since `onPress` is `handlePinPress` (stable, useCallback []) and `pinId` is a string constant per marker instance, `handlePress` is created once per `PinMarker` and never recreated. `<Marker>` never sees a new `onPress` prop unless the pin itself changes.
+
+**Bug 2 — Filter bar ScrollView eating map touches**
+The filter container `View` spanned full width at `top: 35` (Android) with no `pointerEvents` set. The horizontal `ScrollView` inside it captured ALL touches in that region (~35-100px from top), including taps on markers near the top of the screen. The asymmetry in the logcat test (14/17 vs 3/17) was consistent with one pin being in the ScrollView's shadow zone.
+
+Fix: `pointerEvents="box-none"` on the filter container `View`. The View itself now passes touches through; only the actual badge `TouchableOpacity` children still receive touches.
+
+**Bug 3 — `getPinColor` recalculating on every observable emission**
+`pinTags.filter(...)` was called per-pin on every `withObservables` tick (any DB change). Even when colors didn't change semantically, the recalculation caused extra reconciliation overhead.
+
+Fix: Replaced `getPinColor` with a `useMemo`-computed `pinColors: Record<string, string>` map, recomputed only when `pins`, `pinTags`, or `tags` actually change.
+
+**Also added:** `identifier={pinId}` on each `<Marker>` for native identification (enables future `onMarkerPress` at the MapView level if needed).
+
+**What was kept from previous session:** `memo` on `PinMarker`, `moveOnMarkerPress={false}`, `pinsRef` pattern for stable `handlePinPress`.
+
+---
+
+## 8. Next Steps (v2 E2EE Backup Implementation Plan)
 
 1.  **Install E2EE Dependencies:**
     ```bash
