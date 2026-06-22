@@ -51,6 +51,26 @@ Users expect backups to prevent data loss, but require absolute privacy of their
 
 ---
 
+## ADR 05: Migration from Google Maps to MapLibre + OpenFreeMap
+
+### Context & Problem
+The v1.0.0 release uses Google Maps SDK via `react-native-maps` with the developer's GCP API key embedded in the APK. This means every user who downloads the app from the Play Store makes map tile requests billed to the developer's GCP account. The developer has no control over per-user costs and cannot cap or route individual users' billing.
+
+Additionally, the API key must be rotated before first release because it was committed to git history in `.env`.
+
+### Decisions
+1. **Replace `react-native-maps` (Google Maps) with `@maplibre/maplibre-react-native`** using OpenFreeMap as the tile provider.
+2. **Remove all GCP dependency:** No API key is required anywhere — not from the developer, not from the user.
+3. **Accept the trade-offs:**
+   - Hebrew POI label quality is lower than Google Maps (noted in ADR 01 as a previous concern).
+   - For this app's use case — dropping pins at known locations — POI data is irrelevant. The map is a background surface, not a search tool.
+   - OpenFreeMap tiles are free, open, and do not require billing accounts.
+
+### Restoration point
+Tag `v1.0.0-google-maps` marks the last working commit before this migration. To restore the Google Maps version: `git checkout v1.0.0-google-maps`.
+
+---
+
 ## ADR 04: Dynamic API Key Injection for Android Google Maps
 
 ### Context & Problem

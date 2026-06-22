@@ -4,7 +4,53 @@ This file documents the status, architectural decisions, and next steps for Name
 
 ---
 
-## ⚡ START HERE — Next Session (updated 2026-06-18, Session 3)
+## ⚡ START HERE — Next Session (updated 2026-06-22, Session 4)
+
+**Current branch: `master`. Tag `v1.0.0-google-maps` = last working Google Maps commit.**
+
+### What was done this session (2026-06-22)
+
+**Play Store prep — code robustness fixes (all done):**
+- All `database.write()` calls wrapped in try/catch with user-facing Alerts
+- `AsyncStorage.getItem()` has `.catch()` (was an unhandled rejection)
+- Location permission denial now surfaces an Alert instead of silently logging
+- Non-null assertion `tagRecord!` replaced with explicit guards (crash risk on tag race)
+- React Error Boundary added (`src/components/ErrorBoundary.tsx`, wraps App)
+- WatermelonDB migrations enabled (`src/model/migrations.ts`) — schema bumps no longer wipe data
+- `seedSystemTagsIfEmpty()` properly awaited with `.catch()` in App.tsx
+- GPS coordinate validation added before DB write in AddPinBottomSheet
+
+**Security:**
+- `.env` untracked from git (`git rm --cached .env`)
+- `.env.example` created
+- `eas.json` production profile filled in (distribution: store, buildType: aab)
+- `android/app/build.gradle` updated with release signing config (env var-based)
+  - NOTE: android/ is gitignored. These changes survive until the next `expo prebuild --clean`.
+
+**Release assets:**
+- `release/` folder created with: `RELEASE_PREP.md` (full todo tracker), `store-listing.md` (humanized Play Store copy), `privacy-policy.md` (draft)
+
+### Next task: MapLibre migration
+
+**Decision:** Replace `react-native-maps` (Google Maps) with `@maplibre/maplibre-react-native` + OpenFreeMap tiles. No API key anywhere. See ADR 05 in `DECISION_LOG.md`.
+
+**Why:** Google Maps SDK embeds developer's API key in APK — every user's map session bills the developer's GCP account. MapLibre + OpenFreeMap is completely free for any number of users.
+
+**Restore point:** `git checkout v1.0.0-google-maps` to go back to the working Google Maps version.
+
+**Migration steps (not started):**
+1. `npm uninstall react-native-maps`
+2. `npm install @maplibre/maplibre-react-native`
+3. Remove `app.config.js` Google Maps key injection
+4. Remove `GOOGLE_MAPS_API_KEY` from `.env` / `.env.example`
+5. Rewrite `MapScreen.tsx` to use MapLibre's `MapView`, `ShapeSource`, `SymbolLayer`
+6. Replace `<Marker>` with MapLibre annotation layer
+7. `npx expo prebuild --clean && npm install`
+8. Test on S24: map loads, long-press drops pin, tapping pin opens detail panel
+
+---
+
+## ⚡ START HERE — Previous Session (2026-06-18, Session 3)
 
 **App state: working and verified on device (Samsung S24).** The long-standing
 "pins won't open" bug is fixed for real this session. All pins open, panels stay

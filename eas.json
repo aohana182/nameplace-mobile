@@ -10,9 +10,19 @@
     "preview": {
       "distribution": "internal"
     },
-    "production": {}
+    "production": {
+      "distribution": "store",
+      "android": {
+        "buildType": "aab"
+      }
+    }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "android": {
+        "track": "internal",
+        "releaseStatus": "draft"
+      }
+    }
   }
 }

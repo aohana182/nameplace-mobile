@@ -11,6 +11,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import { database } from '../model/database';
 import Pin from '../model/Pin';
@@ -49,48 +50,67 @@ export const AddPinBottomSheet = ({ location, onClose, tags }: AddPinBottomSheet
   const handleSave = async () => {
     if (!location || !name) return;
 
-    await database.write(async () => {
-      const newPin = await database.get<Pin>('pins').create((pin: Pin) => {
-        pin.name = name;
-        pin.description = description;
-        pin.lat = location.latitude;
-        pin.lng = location.longitude;
-      });
+    const isValidCoord = (lat: number, lng: number) =>
+      Number.isFinite(lat) && Number.isFinite(lng) &&
+      lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
 
-      const pinTagsCollection = database.get<PinTag>('pin_tags');
-      const relations = selectedTagIds.map(tagId => {
-        const tagRecord = tags.find(t => t.id === tagId);
-        return pinTagsCollection.prepareCreate((pt: PinTag) => {
-          pt.pin.set(newPin);
-          pt.tag.set(tagRecord!);
+    if (!isValidCoord(location.latitude, location.longitude)) {
+      Alert.alert('Invalid Location', 'Could not get a valid GPS fix. Please try again.');
+      return;
+    }
+
+    try {
+      await database.write(async () => {
+        const newPin = await database.get<Pin>('pins').create((pin: Pin) => {
+          pin.name = name;
+          pin.description = description;
+          pin.lat = location.latitude;
+          pin.lng = location.longitude;
         });
+
+        const pinTagsCollection = database.get<PinTag>('pin_tags');
+        const relations: PinTag[] = [];
+        for (const tagId of selectedTagIds) {
+          const tagRecord = tags.find(t => t.id === tagId);
+          if (!tagRecord) continue;
+          relations.push(pinTagsCollection.prepareCreate((pt: PinTag) => {
+            pt.pin.set(newPin);
+            pt.tag.set(tagRecord);
+          }));
+        }
+
+        await database.batch(relations);
       });
 
-      await database.batch(relations);
-    });
-
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setName('');
-    setDescription('');
-    setSelectedTagIds([]);
-    Keyboard.dismiss();
-    onClose();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setName('');
+      setDescription('');
+      setSelectedTagIds([]);
+      Keyboard.dismiss();
+      onClose();
+    } catch {
+      Alert.alert('Save Failed', 'Could not save your connection. Please check device storage and try again.');
+    }
   };
 
   const handleCreateCustomTag = async () => {
     if (!newTagName.trim()) return;
 
-    await database.write(async () => {
-      await database.get<Tag>('tags').create((t: Tag) => {
-        t.name = newTagName.trim();
-        t.color = newTagColor;
-        t.isSystem = false;
+    try {
+      await database.write(async () => {
+        await database.get<Tag>('tags').create((t: Tag) => {
+          t.name = newTagName.trim();
+          t.color = newTagColor;
+          t.isSystem = false;
+        });
       });
-    });
 
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setNewTagName('');
-    setShowTagCreator(false);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      setNewTagName('');
+      setShowTagCreator(false);
+    } catch {
+      Alert.alert('Tag Creation Failed', 'Could not create tag. Please try again.');
+    }
   };
 
   const toggleTagSelection = (tagId: string) => {

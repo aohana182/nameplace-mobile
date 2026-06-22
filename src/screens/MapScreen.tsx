@@ -88,11 +88,13 @@ const EnhancedMapScreen = ({
   }, []);
 
   useEffect(() => {
-    AsyncStorage.getItem(REGION_KEY).then(raw => {
-      if (raw) {
-        try { setInitialRegion(JSON.parse(raw)); } catch {}
-      }
-    });
+    AsyncStorage.getItem(REGION_KEY)
+      .then(raw => {
+        if (raw) {
+          try { setInitialRegion(JSON.parse(raw)); } catch {}
+        }
+      })
+      .catch(err => console.warn('Failed to restore map region:', err));
   }, []);
 
   const handleRegionChangeComplete = useCallback((region: Region) => {
@@ -110,8 +112,16 @@ const EnhancedMapScreen = ({
           latitudeDelta: 0.01,
           longitudeDelta: 0.01,
         }, 1500);
-      } catch (e) {
-        console.warn('Location init failed', e);
+      } catch (e: any) {
+        const msg: string = e?.message ?? '';
+        if (msg.includes('denied') || msg.includes('Permission')) {
+          Alert.alert(
+            'Location Permission Needed',
+            'Nameplace uses your location to place pins on the map. You can enable it in your device Settings.',
+          );
+        } else {
+          console.warn('Location init failed', e);
+        }
       }
     };
     init();

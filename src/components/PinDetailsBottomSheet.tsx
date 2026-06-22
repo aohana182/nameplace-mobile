@@ -63,36 +63,42 @@ export const PinDetailsBottomSheet = ({ pin, onClose, allTags, pinTags }: PinDet
   const handleUpdate = async () => {
     if (!name.trim()) return;
 
-    await database.write(async () => {
-      await pin.update((p: Pin) => {
-        p.name = name.trim();
-        p.description = description.trim();
-      });
-
-      const currentRelations = await database.get<PinTag>('pin_tags')
-        .query(Q.where('pin_id', pin.id))
-        .fetch();
-
-      const relationsToDelete = currentRelations.filter(r => !selectedTagIds.includes(r.tag.id));
-      const currentTagIds = currentRelations.map(r => r.tag.id);
-      const tagIdsToAdd = selectedTagIds.filter(id => !currentTagIds.includes(id));
-
-      const deletes = relationsToDelete.map(r => r.prepareDestroyPermanently());
-
-      const pinTagsCollection = database.get<PinTag>('pin_tags');
-      const creates = tagIdsToAdd.map(tagId => {
-        const tagRecord = allTags.find(t => t.id === tagId);
-        return pinTagsCollection.prepareCreate((pt: PinTag) => {
-          pt.pin.set(pin);
-          pt.tag.set(tagRecord!);
+    try {
+      await database.write(async () => {
+        await pin.update((p: Pin) => {
+          p.name = name.trim();
+          p.description = description.trim();
         });
+
+        const currentRelations = await database.get<PinTag>('pin_tags')
+          .query(Q.where('pin_id', pin.id))
+          .fetch();
+
+        const relationsToDelete = currentRelations.filter(r => !selectedTagIds.includes(r.tag.id));
+        const currentTagIds = currentRelations.map(r => r.tag.id);
+        const tagIdsToAdd = selectedTagIds.filter(id => !currentTagIds.includes(id));
+
+        const deletes = relationsToDelete.map(r => r.prepareDestroyPermanently());
+
+        const pinTagsCollection = database.get<PinTag>('pin_tags');
+        const creates: PinTag[] = [];
+        for (const tagId of tagIdsToAdd) {
+          const tagRecord = allTags.find(t => t.id === tagId);
+          if (!tagRecord) continue;
+          creates.push(pinTagsCollection.prepareCreate((pt: PinTag) => {
+            pt.pin.set(pin);
+            pt.tag.set(tagRecord);
+          }));
+        }
+
+        await database.batch(...deletes, ...creates);
       });
 
-      await database.batch(...deletes, ...creates);
-    });
-
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setIsEditing(false);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setIsEditing(false);
+    } catch {
+      Alert.alert('Update Failed', 'Could not save changes. Please try again.');
+    }
   };
 
   const handleDelete = async () => {
@@ -102,17 +108,21 @@ export const PinDetailsBottomSheet = ({ pin, onClose, allTags, pinTags }: PinDet
         text: 'Delete',
         style: 'destructive',
         onPress: async () => {
-          await database.write(async () => {
-            const relations = await database.get<PinTag>('pin_tags')
-              .query(Q.where('pin_id', pin.id))
-              .fetch();
+          try {
+            await database.write(async () => {
+              const relations = await database.get<PinTag>('pin_tags')
+                .query(Q.where('pin_id', pin.id))
+                .fetch();
 
-            const deletes = relations.map(r => r.prepareDestroyPermanently());
-            await database.batch(...deletes);
-            await pin.destroyPermanently();
-          });
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          onClose();
+              const deletes = relations.map(r => r.prepareDestroyPermanently());
+              await database.batch(...deletes);
+              await pin.destroyPermanently();
+            });
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            onClose();
+          } catch {
+            Alert.alert('Delete Failed', 'Could not delete this connection. Please try again.');
+          }
         },
       },
     ]);
@@ -121,17 +131,21 @@ export const PinDetailsBottomSheet = ({ pin, onClose, allTags, pinTags }: PinDet
   const handleCreateCustomTag = async () => {
     if (!newTagName.trim()) return;
 
-    await database.write(async () => {
-      await database.get<Tag>('tags').create((t: Tag) => {
-        t.name = newTagName.trim();
-        t.color = newTagColor;
-        t.isSystem = false;
+    try {
+      await database.write(async () => {
+        await database.get<Tag>('tags').create((t: Tag) => {
+          t.name = newTagName.trim();
+          t.color = newTagColor;
+          t.isSystem = false;
+        });
       });
-    });
 
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setNewTagName('');
-    setShowTagCreator(false);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      setNewTagName('');
+      setShowTagCreator(false);
+    } catch {
+      Alert.alert('Tag Creation Failed', 'Could not create tag. Please try again.');
+    }
   };
 
   const toggleTagSelection = (tagId: string) => {

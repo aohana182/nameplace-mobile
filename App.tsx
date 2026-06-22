@@ -9,6 +9,7 @@ import { RobotoSlab_400Regular, RobotoSlab_700Bold } from '@expo-google-fonts/ro
 
 import { useEffect } from 'react';
 import { seedSystemTagsIfEmpty } from './src/model/seed';
+import ErrorBoundary from './src/components/ErrorBoundary';
 
 const AppContent = () => {
   let [fontsLoaded] = useFonts({
@@ -20,7 +21,7 @@ const AppContent = () => {
 
   useEffect(() => {
     if (fontsLoaded) {
-      seedSystemTagsIfEmpty();
+      seedSystemTagsIfEmpty().catch(err => console.error('[seed] Failed:', err));
     }
   }, [fontsLoaded]);
 
@@ -37,10 +38,12 @@ const AppContent = () => {
 
 export default function App() {
   return (
-    <GestureHandlerRootView style={styles.container}>
-      <AppContent />
-      <StatusBar style="auto" />
-    </GestureHandlerRootView>
+    <ErrorBoundary>
+      <GestureHandlerRootView style={styles.container}>
+        <AppContent />
+        <StatusBar style="auto" />
+      </GestureHandlerRootView>
+    </ErrorBoundary>
   );
 }
 

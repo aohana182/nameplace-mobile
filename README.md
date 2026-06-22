@@ -23,7 +23,13 @@ During development, we made the strategic decision to **purge Supabase and all c
 - **Speed:** By removing the cloud bottleneck, we achieved 0ms perceived latency for pin creation.
 - **Reliability:** The app works 100% reliably in "dead zones" (basements, remote trails, airplanes) because it has no external dependencies.
 
-## Current Status & Known Limitations (2026-06-11)
+## Maps provider history
+
+**Tag `v1.0.0-google-maps`** is the last commit using Google Maps SDK. The app is being migrated to MapLibre + OpenFreeMap (no API key required). See ADR 05 in `DECISION_LOG.md` for context.
+
+To restore the Google Maps version: `git checkout v1.0.0-google-maps`
+
+## Current Status & Known Limitations (2026-06-22)
 
 ### Android map requires a Google Maps API key
 The app builds and boots, but the Android map renders **blank** (beige canvas, Google logo only) because no real `GOOGLE_MAPS_API_KEY` is configured. The fallback dummy key in `app.config.js` only prevents the native startup crash (see ADR 04 in `DECISION_LOG.md`) — it cannot load tiles. To fix:
