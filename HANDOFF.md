@@ -6,51 +6,200 @@ This file documents the status, architectural decisions, and next steps for Name
 
 ## ⚡ START HERE — Next Session (updated 2026-06-22, Session 4)
 
-**Current branch: `master`. Tag `v1.0.0-google-maps` = last working Google Maps commit.**
+**Branch: `master`. Tag `v1.0.0-google-maps` = last working Google Maps build.**
+**Restore with: `git checkout v1.0.0-google-maps`**
+
+---
 
 ### What was done this session (2026-06-22)
 
-**Play Store prep — code robustness fixes (all done):**
+**Play Store prep — code robustness (all done):**
 - All `database.write()` calls wrapped in try/catch with user-facing Alerts
-- `AsyncStorage.getItem()` has `.catch()` (was an unhandled rejection)
+- `AsyncStorage.getItem()` has `.catch()` (was an unhandled rejection crash)
 - Location permission denial now surfaces an Alert instead of silently logging
 - Non-null assertion `tagRecord!` replaced with explicit guards (crash risk on tag race)
 - React Error Boundary added (`src/components/ErrorBoundary.tsx`, wraps App)
-- WatermelonDB migrations enabled (`src/model/migrations.ts`) — schema bumps no longer wipe data
+- WatermelonDB migrations enabled (`src/model/migrations.ts`) — schema bumps no longer wipe user data
 - `seedSystemTagsIfEmpty()` properly awaited with `.catch()` in App.tsx
 - GPS coordinate validation added before DB write in AddPinBottomSheet
 
 **Security:**
 - `.env` untracked from git (`git rm --cached .env`)
-- `.env.example` created
+- `.env.example` created with placeholder values
 - `eas.json` production profile filled in (distribution: store, buildType: aab)
-- `android/app/build.gradle` updated with release signing config (env var-based)
-  - NOTE: android/ is gitignored. These changes survive until the next `expo prebuild --clean`.
+- `android/app/build.gradle` updated with release signing config (env var-based, see `release/RELEASE_PREP.md`)
 
-**Release assets:**
-- `release/` folder created with: `RELEASE_PREP.md` (full todo tracker), `store-listing.md` (humanized Play Store copy), `privacy-policy.md` (draft)
+**Release assets (`release/` folder):**
+- `RELEASE_PREP.md` — full todo tracker with statuses
+- `store-listing.md` — humanized Play Store copy (short desc, full desc, changelog, keywords)
+- `privacy-policy.md` — draft ready to host
 
-### Next task: MapLibre migration
-
-**Decision:** Replace `react-native-maps` (Google Maps) with `@maplibre/maplibre-react-native` + OpenFreeMap tiles. No API key anywhere. See ADR 05 in `DECISION_LOG.md`.
-
-**Why:** Google Maps SDK embeds developer's API key in APK — every user's map session bills the developer's GCP account. MapLibre + OpenFreeMap is completely free for any number of users.
-
-**Restore point:** `git checkout v1.0.0-google-maps` to go back to the working Google Maps version.
-
-**Migration steps (not started):**
-1. `npm uninstall react-native-maps`
-2. `npm install @maplibre/maplibre-react-native`
-3. Remove `app.config.js` Google Maps key injection
-4. Remove `GOOGLE_MAPS_API_KEY` from `.env` / `.env.example`
-5. Rewrite `MapScreen.tsx` to use MapLibre's `MapView`, `ShapeSource`, `SymbolLayer`
-6. Replace `<Marker>` with MapLibre annotation layer
-7. `npx expo prebuild --clean && npm install`
-8. Test on S24: map loads, long-press drops pin, tapping pin opens detail panel
+**Decision:** Replace Google Maps with MapLibre + OpenFreeMap. No API key anywhere.
+See ADR 05 in `DECISION_LOG.md` for full context.
 
 ---
 
-## ⚡ START HERE — Previous Session (2026-06-18, Session 3)
+### Next task: MapLibre migration
+
+#### Step 0 — Read first
+The critical file is `src/screens/MapScreen.tsx`. Read it in full before touching anything. It uses a non-obvious pattern: pin taps go through `MapView.onMarkerPress` at the view level (not per-Marker), because per-`<Marker>` `onPress` is unreliable under Fabric (see Session 3 notes below). MapLibre has a different event model — plan the equivalent carefully before writing code.
+
+#### Step 1 — Package changes
+
+```bash
+# Remove react-native-maps and its patch
+npm uninstall react-native-maps
+rm patches/react-native-maps+1.27.2.patch
+
+# Remove @gorhom/bottom-sheet (no longer used, still in package.json)
+npm uninstall @gorhom/bottom-sheet
+
+# Install MapLibre
+npm install @maplibre/maplibre-react-native
+```
+
+Also remove the dead `@gorhom/bottom-sheet` mock in `__tests__/UIComponentRendering.test.tsx`.
+
+#### Step 2 — app.config.js and app.json
+
+`app.config.js` currently injects `googleMaps.apiKey` into the Android config. Delete this entire file — it only existed to inject the Maps key. The static config in `app.json` is sufficient.
+
+`app.json` plugins: remove the Google Maps-related config if any, keep `expo-location`, `@morrowdigital/watermelondb-expo-plugin`, and `./plugins/withNewArchDisabled`.
+
+Remove `GOOGLE_MAPS_API_KEY` from `.env.example` too — it's no longer needed.
+
+#### Step 3 — Tile source
+
+Use OpenFreeMap. It is free, no key, no account required.
+
+Recommended style URL: `https://tiles.openfreemap.org/styles/liberty`
+
+Alternatives: `positron` (minimal/light), `bright` (more detailed). `liberty` is the best general-purpose option.
+
+#### Step 4 — Rewrite MapScreen.tsx
+
+**API translation table — read this before writing a single line:**
+
+| Concern | react-native-maps | MapLibre |
+|---|---|---|
+| Map component | `<MapView>` | `<MapLibreGL.MapView>` |
+| Camera/region control | `mapRef.current?.animateToRegion({latitude, longitude, latitudeDelta, longitudeDelta}, duration)` | Separate `<MapLibreGL.Camera ref={cameraRef}>` + `cameraRef.current?.setCamera({centerCoordinate: [lng, lat], zoomLevel: 14, animationDuration: 1500})` |
+| Initial region | `initialRegion` prop on MapView | `defaultSettings` or `centerCoordinate` + `zoomLevel` on `<MapLibreGL.Camera>` |
+| Pin markers | `<Marker identifier={id} coordinate={{latitude, longitude}} pinColor={color} />` | `<MapLibreGL.PointAnnotation id={id} coordinate={[longitude, latitude]}>` + a `<View>` child as the pin shape |
+| Pin tap | `MapView.onMarkerPress(e.nativeEvent.id)` ← USE THIS, per-Marker onPress unreliable | `PointAnnotation.onSelected()` — fires per annotation, reliable |
+| Long press | `MapView.onLongPress(e.nativeEvent.coordinate)` → `{latitude, longitude}` | `MapView.onLongPress(feature)` → `feature.geometry.coordinates` = `[longitude, latitude]` |
+| Region change | `MapView.onRegionChangeComplete(region: Region)` | `MapView.onRegionDidChange(feature)` — different shape |
+| User location dot | `showsUserLocation` prop | `<MapLibreGL.UserLocation />` child component |
+| Map ready | `onMapReady` prop | `onDidFinishLoadingMap` prop |
+| Map ref type | `useRef<MapView>` | `useRef<MapLibreGL.MapView>` |
+
+**CRITICAL coordinate order difference:**
+- `react-native-maps` uses `{latitude, longitude}` (lat first)
+- MapLibre uses `[longitude, latitude]` (lng first — GeoJSON standard)
+
+Every coordinate in `handleLongPress`, `handleMarkerPress`, `centerOnMe`, `animateToRegion`, and the `PinMarker` component needs the order flipped. This is the most common migration bug.
+
+**PinMarker replacement:**
+
+Current (react-native-maps):
+```tsx
+const PinMarker = memo(({ pinId, lat, lng, color }: PinMarkerProps) => (
+  <Marker identifier={pinId} coordinate={{ latitude: lat, longitude: lng }} pinColor={color} />
+));
+```
+
+MapLibre equivalent:
+```tsx
+const PinMarker = memo(({ pinId, lat, lng, color }: PinMarkerProps) => (
+  <MapLibreGL.PointAnnotation
+    id={pinId}
+    coordinate={[lng, lat]}  // NOTE: [longitude, latitude]
+    onSelected={() => handleMarkerPress(pinId)}
+  >
+    <View style={[styles.pin, { backgroundColor: color }]} />
+  </MapLibreGL.PointAnnotation>
+));
+```
+
+The `<View>` child is the visual pin. Make it a circle or teardrop shape in StyleSheet. This replaces the native `pinColor` prop.
+
+**Long press coordinate extraction:**
+```tsx
+// react-native-maps:
+const handleLongPress = (event: LongPressEvent) => {
+  setSelectedLocation(event.nativeEvent.coordinate); // {latitude, longitude}
+};
+
+// MapLibre:
+const handleLongPress = (feature: GeoJSON.Feature) => {
+  const [longitude, latitude] = feature.geometry.coordinates;
+  setSelectedLocation({ latitude, longitude });
+};
+```
+
+**centerOnMe (animateToRegion equivalent):**
+```tsx
+// react-native-maps:
+mapRef.current?.animateToRegion({ ...loc, latitudeDelta: 0.01, longitudeDelta: 0.01 }, 1500);
+
+// MapLibre:
+cameraRef.current?.setCamera({
+  centerCoordinate: [loc.longitude, loc.latitude],
+  zoomLevel: 14,
+  animationDuration: 1500,
+});
+```
+
+**Region persistence (onRegionChangeComplete):**
+The region format changes. Either store the raw camera state (center + zoom) or convert to the existing `{latitude, longitude, latitudeDelta, longitudeDelta}` format for backwards compatibility with existing AsyncStorage entries.
+
+Simplest approach: store `{centerCoordinate: [lng, lat], zoomLevel: number}` under a new key (`nameplace:lastCamera`) and let old `nameplace:lastRegion` entries expire naturally.
+
+#### Step 5 — Rebuild native
+
+```powershell
+$env:JAVA_HOME = "C:\Program Files\Microsoft\jdk-21.0.11.10-hotspot"
+$env:ANDROID_HOME = "C:\Users\avioh\Android"
+npx expo prebuild --clean
+npm install    # re-applies patches via postinstall
+npx expo run:android
+```
+
+#### Step 6 — Verify on S24
+
+Must test each of these — these were the historical crash/regression points:
+- [ ] Map tiles load (OpenFreeMap renders, not blank screen)
+- [ ] Long-press drops a green pending pin, AddPinBottomSheet opens
+- [ ] Save a pin — it appears on the map with correct tag color
+- [ ] Tap an existing pin — PinDetailsBottomSheet opens and stays open
+- [ ] Edit + Save a pin — changes persist
+- [ ] Delete a pin — marker removed from map
+- [ ] "Center on me" button — map animates to GPS position
+- [ ] Deny location permission — Alert shown (not silent crash)
+- [ ] Kill and reopen — map reopens at last viewed region, pins still there
+- [ ] Tag filter — filter bar shows tags, toggling hides/shows pins
+
+#### Cleanup items (do alongside migration)
+
+- [ ] Remove `@gorhom/bottom-sheet` from `package.json` (already uninstalled above)
+- [ ] Delete dead jest mock for it in `__tests__/UIComponentRendering.test.tsx`
+- [ ] Delete `patches/react-native-maps+1.27.2.patch` after uninstall
+- [ ] Delete `app.config.js` (only existed for Google Maps key injection)
+- [ ] Remove `GOOGLE_MAPS_API_KEY` from `.env.example`
+- [ ] Update `README.md` Known Limitations section (Google Maps key section no longer applies)
+
+#### Outstanding Play Store items (after migration)
+
+See `release/RELEASE_PREP.md` for the full tracker. Remaining blockers:
+- New app icon (current is placeholder — see icon brief in RELEASE_PREP.md)
+- Production keystore generation + GCP key rotation
+- Screenshots on S24 (5 required)
+- Privacy policy hosted at a public URL
+- Play Console account creation
+
+---
+
+## ⚡ Previous Session (2026-06-18, Session 3)
 
 **App state: working and verified on device (Samsung S24).** The long-standing
 "pins won't open" bug is fixed for real this session. All pins open, panels stay
