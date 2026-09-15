@@ -6,12 +6,11 @@ import {
   TextInput,
   TouchableOpacity,
   Keyboard,
-  Modal,
-  Pressable,
   ScrollView,
   KeyboardAvoidingView,
   Alert,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { database } from '../model/database';
 import Pin from '../model/Pin';
 import Tag from '../model/Tag';
@@ -20,7 +19,7 @@ import withObservables from '@nozbe/with-observables';
 import * as Haptics from 'expo-haptics';
 import { Plus, Check, X } from 'lucide-react-native';
 import { PALETTE_COLORS } from '../constants/tagColors';
-import { ModalSafeArea } from './ModalSafeArea';
+import { BottomSheetOverlay } from './BottomSheetOverlay';
 
 interface AddPinBottomSheetProps {
   location: { latitude: number; longitude: number } | null;
@@ -29,6 +28,7 @@ interface AddPinBottomSheetProps {
 }
 
 export const AddPinBottomSheet = ({ location, onClose, tags }: AddPinBottomSheetProps) => {
+  const insets = useSafeAreaInsets();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
@@ -113,11 +113,7 @@ export const AddPinBottomSheet = ({ location, onClose, tags }: AddPinBottomSheet
   if (!location) return null;
 
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
-      <ModalSafeArea>
-        {(insets) => (
-      <View style={styles.overlay}>
-        <Pressable style={styles.backdrop} onPress={onClose} />
+    <BottomSheetOverlay onClose={onClose}>
         <KeyboardAvoidingView
           // 'padding' on both platforms: Android's adjustResize (set in AndroidManifest)
           // stops reliably resizing the window once edge-to-edge is enabled (gradle.properties
@@ -128,10 +124,11 @@ export const AddPinBottomSheet = ({ location, onClose, tags }: AddPinBottomSheet
           behavior="padding"
           style={styles.sheetWrapper}
         >
-          <View style={styles.sheet}>
+          <View style={[styles.sheet, { paddingBottom: insets.bottom }]}>
             <View style={styles.handle} />
             <ScrollView
-              contentContainerStyle={[styles.contentContainer, { paddingBottom: 48 + insets.bottom }]}
+              style={styles.scrollArea}
+              contentContainerStyle={styles.contentContainer}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
@@ -245,7 +242,12 @@ export const AddPinBottomSheet = ({ location, onClose, tags }: AddPinBottomSheet
                   );
                 })}
               </View>
+            </ScrollView>
 
+            {/* Outside the ScrollView so the primary CTA is always reachable — with the
+                keyboard open and a scroll position mid-form, a button living inside the
+                scroll content can end up needing a scroll to even see, let alone tap. */}
+            <View style={styles.stickyFooter}>
               <TouchableOpacity
                 style={[styles.button, !name && styles.buttonDisabled]}
                 activeOpacity={0.7}
@@ -254,29 +256,14 @@ export const AddPinBottomSheet = ({ location, onClose, tags }: AddPinBottomSheet
               >
                 <Text style={styles.buttonText}>Save Connection</Text>
               </TouchableOpacity>
-            </ScrollView>
+            </View>
           </View>
         </KeyboardAvoidingView>
-      </View>
-        )}
-      </ModalSafeArea>
-    </Modal>
+    </BottomSheetOverlay>
   );
 };
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(15, 23, 42, 0.4)',
-  },
-  backdrop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
   sheetWrapper: {
     width: '100%',
   },
@@ -295,9 +282,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#CBD5E1',
     marginBottom: 8,
   },
+  scrollArea: {
+    flexShrink: 1,
+  },
   contentContainer: {
     paddingHorizontal: 24,
-    paddingBottom: 48,
+    paddingBottom: 20,
+  },
+  stickyFooter: {
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
   },
   titleRow: {
     flexDirection: 'row',
@@ -312,8 +309,8 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   closeButton: {
-    minHeight: 40,
-    minWidth: 40,
+    minHeight: 48,
+    minWidth: 48,
     justifyContent: 'center',
     alignItems: 'center',
   },

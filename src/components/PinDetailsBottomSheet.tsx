@@ -6,11 +6,10 @@ import {
   TextInput,
   TouchableOpacity,
   Alert,
-  Modal,
-  Pressable,
   ScrollView,
   KeyboardAvoidingView,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Pin from '../model/Pin';
 import Tag from '../model/Tag';
 import PinTag from '../model/PinTag';
@@ -20,7 +19,7 @@ import withObservables from '@nozbe/with-observables';
 import { Trash2, Edit3, X, Check, Plus } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { PALETTE_COLORS } from '../constants/tagColors';
-import { ModalSafeArea } from './ModalSafeArea';
+import { BottomSheetOverlay } from './BottomSheetOverlay';
 
 interface PinDetailsBottomSheetProps {
   pin: Pin;
@@ -30,6 +29,7 @@ interface PinDetailsBottomSheetProps {
 }
 
 export const PinDetailsBottomSheet = ({ pin, onClose, allTags, pinTags }: PinDetailsBottomSheetProps) => {
+  const insets = useSafeAreaInsets();
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(pin.name);
   const [description, setDescription] = useState(pin.description || '');
@@ -146,21 +146,17 @@ export const PinDetailsBottomSheet = ({ pin, onClose, allTags, pinTags }: PinDet
   };
 
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
-      <ModalSafeArea>
-        {(insets) => (
-      <View style={styles.overlay}>
-        <Pressable style={styles.backdrop} onPress={onClose} />
+    <BottomSheetOverlay onClose={onClose}>
         <KeyboardAvoidingView
           // See AddPinBottomSheet.tsx for why this is 'padding' on Android too:
           // adjustResize doesn't reliably resize the window once edge-to-edge is enabled.
           behavior="padding"
           style={styles.sheetWrapper}
         >
-          <View style={styles.sheet}>
+          <View style={[styles.sheet, { paddingBottom: insets.bottom }]}>
             <View style={styles.handle} />
             <ScrollView
-              contentContainerStyle={[styles.contentContainer, { paddingBottom: 48 + insets.bottom }]}
+              contentContainerStyle={styles.contentContainer}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
@@ -325,26 +321,11 @@ export const PinDetailsBottomSheet = ({ pin, onClose, allTags, pinTags }: PinDet
             </ScrollView>
           </View>
         </KeyboardAvoidingView>
-      </View>
-        )}
-      </ModalSafeArea>
-    </Modal>
+    </BottomSheetOverlay>
   );
 };
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(15, 23, 42, 0.4)',
-  },
-  backdrop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
   sheetWrapper: {
     width: '100%',
   },
@@ -399,11 +380,11 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   actionButton: {
-    minHeight: 44,
-    minWidth: 44,
+    minHeight: 48,
+    minWidth: 48,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 22,
+    borderRadius: 24,
     shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,

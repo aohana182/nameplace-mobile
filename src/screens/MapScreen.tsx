@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { StyleSheet, View, Alert, TouchableOpacity, Text, ScrollView, Platform } from 'react-native';
+import { StyleSheet, View, Alert, TouchableOpacity, Text, ScrollView, Platform, ActivityIndicator } from 'react-native';
 import {
   Map as MapLibreMap,
   Camera,
@@ -25,7 +25,7 @@ import { requestLocationPermissions, getCurrentLocation } from '../services/Loca
 import AddPinBottomSheet from '../components/AddPinBottomSheet';
 import PinDetailsBottomSheet from '../components/PinDetailsBottomSheet';
 import ManageTagsBottomSheet from '../components/ManageTagsBottomSheet';
-import { Navigation, Settings } from 'lucide-react-native';
+import { Navigation, Settings, Plus } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
 interface MapScreenProps {
@@ -64,6 +64,7 @@ const EnhancedMapScreen = ({
   const [showManageTags, setShowManageTags] = useState(false);
   const [isMapReady, setIsMapReady] = useState(false);
   const [initialCamera, setInitialCamera] = useState<CameraState | null>(null);
+  const [isLocating, setIsLocating] = useState(false);
   const mapRef = useRef<MapRef>(null);
   const cameraRef = useRef<CameraRef>(null);
   const pinsRef = useRef<Pin[]>(pins);
@@ -159,6 +160,7 @@ const EnhancedMapScreen = ({
   // `silent` keeps cold-start GPS timeouts from popping an alert on every app launch; the
   // locate button always surfaces what went wrong since the user explicitly asked for it.
   const goToCurrentLocation = useCallback(async (silent: boolean) => {
+    setIsLocating(true);
     try {
       await requestLocationPermissions();
       const loc = await getCurrentLocation();
@@ -175,6 +177,8 @@ const EnhancedMapScreen = ({
       } else {
         Alert.alert('Location Error', 'Could not get current GPS location. Please check your settings.');
       }
+    } finally {
+      setIsLocating(false);
     }
   }, [flyToLocation]);
 
@@ -197,6 +201,18 @@ const EnhancedMapScreen = ({
   const centerOnMe = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     goToCurrentLocation(false);
+  };
+
+  // The only way to add a pin was previously long-pressing the map — a gesture with
+  // zero on-screen affordance, so first-time users had no way to discover it. This
+  // FAB drops a pin at the current map center, the same entry point as the long-press.
+  const handleAddPinAtCenter = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setActivePin(null);
+    const viewState = await mapRef.current?.getViewState();
+    if (!viewState) return;
+    const [longitude, latitude] = viewState.center;
+    setSelectedLocation({ latitude, longitude });
   };
 
   if (!initialCamera) {
@@ -303,8 +319,23 @@ const EnhancedMapScreen = ({
         style={[styles.locationButton, { bottom: 50 + insets.bottom }]}
         activeOpacity={0.8}
         onPress={centerOnMe}
+        disabled={isLocating}
       >
-        <Navigation size={22} color="#2563EB" />
+        {isLocating ? (
+          <ActivityIndicator size="small" color="#2563EB" />
+        ) : (
+          <Navigation size={22} color="#2563EB" />
+        )}
+      </TouchableOpacity>
+
+      {/* Primary create action — the only prior way to add a pin was a long-press with
+          no on-screen hint at all. Drops a pin at the current map center. */}
+      <TouchableOpacity
+        style={[styles.addPinButton, { bottom: 50 + insets.bottom }]}
+        activeOpacity={0.85}
+        onPress={handleAddPinAtCenter}
+      >
+        <Plus size={26} color="#FFFFFF" />
       </TouchableOpacity>
 
       {selectedLocation && (
@@ -480,5 +511,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#E2E8F0',
+  },
+  addPinButton: {
+    position: 'absolute',
+    left: '50%',
+    marginLeft: -30,
+    backgroundColor: '#2563EB',
+    borderRadius: 30,
+    elevation: 8,
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    height: 60,
+    width: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

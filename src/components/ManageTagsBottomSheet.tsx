@@ -5,19 +5,18 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  Modal,
-  Pressable,
   ScrollView,
   KeyboardAvoidingView,
   Alert,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { database } from '../model/database';
 import Tag from '../model/Tag';
 import withObservables from '@nozbe/with-observables';
 import * as Haptics from 'expo-haptics';
 import { Plus, Check, X, Edit3, Trash2 } from 'lucide-react-native';
 import { PALETTE_COLORS } from '../constants/tagColors';
-import { ModalSafeArea } from './ModalSafeArea';
+import { BottomSheetOverlay } from './BottomSheetOverlay';
 
 interface ManageTagsBottomSheetProps {
   onClose: () => void;
@@ -25,6 +24,7 @@ interface ManageTagsBottomSheetProps {
 }
 
 export const ManageTagsBottomSheet = ({ onClose, tags }: ManageTagsBottomSheetProps) => {
+  const insets = useSafeAreaInsets();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editColor, setEditColor] = useState(PALETTE_COLORS[0]);
@@ -123,21 +123,17 @@ export const ManageTagsBottomSheet = ({ onClose, tags }: ManageTagsBottomSheetPr
   );
 
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
-      <ModalSafeArea>
-        {(insets) => (
-      <View style={styles.overlay}>
-        <Pressable style={styles.backdrop} onPress={onClose} />
+    <BottomSheetOverlay onClose={onClose}>
         <KeyboardAvoidingView
           // See AddPinBottomSheet.tsx for why this is 'padding' on Android too:
           // adjustResize doesn't reliably resize the window once edge-to-edge is enabled.
           behavior="padding"
           style={styles.sheetWrapper}
         >
-          <View style={styles.sheet}>
+          <View style={[styles.sheet, { paddingBottom: insets.bottom }]}>
             <View style={styles.handle} />
             <ScrollView
-              contentContainerStyle={[styles.contentContainer, { paddingBottom: 48 + insets.bottom }]}
+              contentContainerStyle={[styles.contentContainer, { paddingBottom: 48 }]}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
@@ -247,26 +243,11 @@ export const ManageTagsBottomSheet = ({ onClose, tags }: ManageTagsBottomSheetPr
             </ScrollView>
           </View>
         </KeyboardAvoidingView>
-      </View>
-        )}
-      </ModalSafeArea>
-    </Modal>
+    </BottomSheetOverlay>
   );
 };
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(15, 23, 42, 0.4)',
-  },
-  backdrop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
   sheetWrapper: {
     width: '100%',
   },
@@ -301,8 +282,8 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   closeButton: {
-    minHeight: 40,
-    minWidth: 40,
+    minHeight: 48,
+    minWidth: 48,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -339,8 +320,9 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   iconButton: {
-    minHeight: 40,
-    minWidth: 40,
+    // Material's 48dp minimum touch target (was 40).
+    minHeight: 48,
+    minWidth: 48,
     justifyContent: 'center',
     alignItems: 'center',
   },
