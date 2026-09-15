@@ -71,10 +71,10 @@ export const ManageTagsBottomSheet = ({ onClose, tags }: ManageTagsBottomSheetPr
             try {
               await database.write(async () => {
                 const relations = await tag.pinTags.fetch();
-                await database.batch(
-                  relations.map(r => r.prepareDestroyPermanently()),
+                await database.batch([
+                  ...relations.map(r => r.prepareDestroyPermanently()),
                   tag.prepareDestroyPermanently(),
-                );
+                ]);
               });
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             } catch {
@@ -180,6 +180,7 @@ export const ManageTagsBottomSheet = ({ onClose, tags }: ManageTagsBottomSheetPr
                       <Text style={styles.tagName} numberOfLines={1}>{tag.name}</Text>
                       {tag.isSystem && <Text style={styles.systemBadge}>System</Text>}
                       <TouchableOpacity
+                        testID={`edit-tag-${tag.id}`}
                         style={styles.iconButton}
                         activeOpacity={0.7}
                         onPress={() => startEdit(tag)}
@@ -188,6 +189,7 @@ export const ManageTagsBottomSheet = ({ onClose, tags }: ManageTagsBottomSheetPr
                       </TouchableOpacity>
                       {!tag.isSystem && (
                         <TouchableOpacity
+                          testID={`delete-tag-${tag.id}`}
                           style={styles.iconButton}
                           activeOpacity={0.7}
                           onPress={() => handleDelete(tag)}
