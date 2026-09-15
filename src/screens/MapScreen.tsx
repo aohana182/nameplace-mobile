@@ -152,31 +152,40 @@ const EnhancedMapScreen = ({
     });
   }, []);
 
+  // Shared by the initial GPS-snap and the locate button: request permission every time
+  // (Android no-ops if already granted, so this is cheap — the initial-mount effect used to
+  // skip this whenever a camera was restored from storage, which is true on nearly every
+  // relaunch, so the locate button never got a chance to prompt for permission at all).
+  // `silent` keeps cold-start GPS timeouts from popping an alert on every app launch; the
+  // locate button always surfaces what went wrong since the user explicitly asked for it.
+  const goToCurrentLocation = useCallback(async (silent: boolean) => {
+    try {
+      await requestLocationPermissions();
+      const loc = await getCurrentLocation();
+      flyToLocation(loc);
+    } catch (e: any) {
+      const msg: string = e?.message ?? '';
+      if (msg.includes('denied') || msg.includes('Permission')) {
+        Alert.alert(
+          'Location Permission Needed',
+          'Nameplace uses your location to place pins on the map. You can enable it in your device Settings.',
+        );
+      } else if (silent) {
+        console.warn('Location fetch failed', e);
+      } else {
+        Alert.alert('Location Error', 'Could not get current GPS location. Please check your settings.');
+      }
+    }
+  }, [flyToLocation]);
+
   useEffect(() => {
     if (!isMapReady) return;
     // Only auto-snap to GPS on a true first launch (no camera restored from storage) —
     // otherwise this silently overrides the user's last panned/zoomed position a moment
     // after it's restored, defeating region persistence on every relaunch where GPS succeeds.
     if (hasRestoredCameraRef.current) return;
-    const init = async () => {
-      try {
-        await requestLocationPermissions();
-        const loc = await getCurrentLocation();
-        flyToLocation(loc);
-      } catch (e: any) {
-        const msg: string = e?.message ?? '';
-        if (msg.includes('denied') || msg.includes('Permission')) {
-          Alert.alert(
-            'Location Permission Needed',
-            'Nameplace uses your location to place pins on the map. You can enable it in your device Settings.',
-          );
-        } else {
-          console.warn('Location init failed', e);
-        }
-      }
-    };
-    init();
-  }, [isMapReady]);
+    goToCurrentLocation(true);
+  }, [isMapReady, goToCurrentLocation]);
 
   const handleLongPress = (event: { nativeEvent: PressEvent }) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
@@ -185,14 +194,9 @@ const EnhancedMapScreen = ({
     setSelectedLocation({ latitude, longitude });
   };
 
-  const centerOnMe = async () => {
+  const centerOnMe = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    try {
-      const loc = await getCurrentLocation();
-      flyToLocation(loc);
-    } catch (e) {
-      Alert.alert('Location Error', 'Could not get current GPS location. Please check your settings.');
-    }
+    goToCurrentLocation(false);
   };
 
   if (!initialCamera) {
@@ -208,6 +212,9 @@ const EnhancedMapScreen = ({
         onDidFinishLoadingMap={() => setIsMapReady(true)}
         onLongPress={handleLongPress}
         onRegionDidChange={handleRegionDidChange}
+        // bottom-left, matching the locate button's height on the opposite side but
+        // shifted up clear of the MapLibre logo/attribution row that already lives there.
+        compassPosition={{ bottom: 130 + insets.bottom, left: 20 }}
       >
         <Camera
           ref={cameraRef}
@@ -233,8 +240,9 @@ const EnhancedMapScreen = ({
         )}
       </MapLibreMap>
 
-      {/* Horizontal Tag Filters — box-none so the container itself never eats map touches */}
-      <View pointerEvents="box-none" style={[styles.filterContainer, { top: insets.top + (Platform.OS === 'ios' ? 10 : 15) }]}>
+      {/* Horizontal Tag Filters — box-none so the container itself never eats map touches.
+          right is reserved for the settings button's own width so pills never scroll under it. */}
+      <View pointerEvents="box-none" style={[styles.filterContainer, { top: insets.top + (Platform.OS === 'ios' ? 10 : 15), right: 78 }]}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
