@@ -9,16 +9,15 @@ import {
   Pressable,
   ScrollView,
   KeyboardAvoidingView,
-  Platform,
   Alert,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { database } from '../model/database';
 import Tag from '../model/Tag';
 import withObservables from '@nozbe/with-observables';
 import * as Haptics from 'expo-haptics';
 import { Plus, Check, X, Edit3, Trash2 } from 'lucide-react-native';
 import { PALETTE_COLORS } from '../constants/tagColors';
+import { ModalSafeArea } from './ModalSafeArea';
 
 interface ManageTagsBottomSheetProps {
   onClose: () => void;
@@ -26,7 +25,6 @@ interface ManageTagsBottomSheetProps {
 }
 
 export const ManageTagsBottomSheet = ({ onClose, tags }: ManageTagsBottomSheetProps) => {
-  const insets = useSafeAreaInsets();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editColor, setEditColor] = useState(PALETTE_COLORS[0]);
@@ -126,10 +124,14 @@ export const ManageTagsBottomSheet = ({ onClose, tags }: ManageTagsBottomSheetPr
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
+      <ModalSafeArea>
+        {(insets) => (
       <View style={styles.overlay}>
         <Pressable style={styles.backdrop} onPress={onClose} />
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          // See AddPinBottomSheet.tsx for why this is 'padding' on Android too:
+          // adjustResize doesn't reliably resize the window once edge-to-edge is enabled.
+          behavior="padding"
           style={styles.sheetWrapper}
         >
           <View style={styles.sheet}>
@@ -246,6 +248,8 @@ export const ManageTagsBottomSheet = ({ onClose, tags }: ManageTagsBottomSheetPr
           </View>
         </KeyboardAvoidingView>
       </View>
+        )}
+      </ModalSafeArea>
     </Modal>
   );
 };

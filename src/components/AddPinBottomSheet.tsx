@@ -10,10 +10,8 @@ import {
   Pressable,
   ScrollView,
   KeyboardAvoidingView,
-  Platform,
   Alert,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { database } from '../model/database';
 import Pin from '../model/Pin';
 import Tag from '../model/Tag';
@@ -22,6 +20,7 @@ import withObservables from '@nozbe/with-observables';
 import * as Haptics from 'expo-haptics';
 import { Plus, Check, X } from 'lucide-react-native';
 import { PALETTE_COLORS } from '../constants/tagColors';
+import { ModalSafeArea } from './ModalSafeArea';
 
 interface AddPinBottomSheetProps {
   location: { latitude: number; longitude: number } | null;
@@ -30,7 +29,6 @@ interface AddPinBottomSheetProps {
 }
 
 export const AddPinBottomSheet = ({ location, onClose, tags }: AddPinBottomSheetProps) => {
-  const insets = useSafeAreaInsets();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
@@ -116,10 +114,18 @@ export const AddPinBottomSheet = ({ location, onClose, tags }: AddPinBottomSheet
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
+      <ModalSafeArea>
+        {(insets) => (
       <View style={styles.overlay}>
         <Pressable style={styles.backdrop} onPress={onClose} />
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          // 'padding' on both platforms: Android's adjustResize (set in AndroidManifest)
+          // stops reliably resizing the window once edge-to-edge is enabled (gradle.properties
+          // has edgeToEdgeEnabled=true) — the app's window covers the full screen, so the OS has
+          // no boundary left to shrink and the keyboard just overlays content instead. This
+          // KeyboardAvoidingView padding is what actually keeps focused inputs and the Save
+          // button above the keyboard now.
+          behavior="padding"
           style={styles.sheetWrapper}
         >
           <View style={styles.sheet}>
@@ -252,6 +258,8 @@ export const AddPinBottomSheet = ({ location, onClose, tags }: AddPinBottomSheet
           </View>
         </KeyboardAvoidingView>
       </View>
+        )}
+      </ModalSafeArea>
     </Modal>
   );
 };

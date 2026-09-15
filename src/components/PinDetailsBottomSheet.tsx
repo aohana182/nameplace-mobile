@@ -10,7 +10,6 @@ import {
   Pressable,
   ScrollView,
   KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
 import Pin from '../model/Pin';
 import Tag from '../model/Tag';
@@ -20,8 +19,8 @@ import { Q } from '@nozbe/watermelondb';
 import withObservables from '@nozbe/with-observables';
 import { Trash2, Edit3, X, Check, Plus } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PALETTE_COLORS } from '../constants/tagColors';
+import { ModalSafeArea } from './ModalSafeArea';
 
 interface PinDetailsBottomSheetProps {
   pin: Pin;
@@ -31,7 +30,6 @@ interface PinDetailsBottomSheetProps {
 }
 
 export const PinDetailsBottomSheet = ({ pin, onClose, allTags, pinTags }: PinDetailsBottomSheetProps) => {
-  const insets = useSafeAreaInsets();
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(pin.name);
   const [description, setDescription] = useState(pin.description || '');
@@ -149,10 +147,14 @@ export const PinDetailsBottomSheet = ({ pin, onClose, allTags, pinTags }: PinDet
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
+      <ModalSafeArea>
+        {(insets) => (
       <View style={styles.overlay}>
         <Pressable style={styles.backdrop} onPress={onClose} />
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          // See AddPinBottomSheet.tsx for why this is 'padding' on Android too:
+          // adjustResize doesn't reliably resize the window once edge-to-edge is enabled.
+          behavior="padding"
           style={styles.sheetWrapper}
         >
           <View style={styles.sheet}>
@@ -324,6 +326,8 @@ export const PinDetailsBottomSheet = ({ pin, onClose, allTags, pinTags }: PinDet
           </View>
         </KeyboardAvoidingView>
       </View>
+        )}
+      </ModalSafeArea>
     </Modal>
   );
 };
