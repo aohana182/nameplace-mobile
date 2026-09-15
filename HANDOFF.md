@@ -4,10 +4,95 @@ This file documents the status, architectural decisions, and next steps for Name
 
 ---
 
-## ⚡ START HERE — Next Session (updated 2026-09-15, Session 5)
+## ⚡ START HERE — Next Session (updated 2026-09-15, Session 6)
 
-**Branch: `master`. Tag `v1.0.0-google-maps` = last working Google Maps build.**
-**Restore with: `git checkout v1.0.0-google-maps`**
+**Branch: `master`, up to date with `origin/master`. Latest commit: `1bcef3a`.**
+**Tag `v1.0.0-google-maps` = last working Google Maps build. Restore with: `git checkout v1.0.0-google-maps`**
+
+### #1 priority: real-device confirmation of the bottom-sheet architecture change
+
+Session 6 replaced React Native's `<Modal>` entirely for the three bottom sheets
+(`AddPinBottomSheet`, `PinDetailsBottomSheet`, `ManageTagsBottomSheet`) with a new
+in-tree `BottomSheetOverlay` component, after three earlier patches this session
+(insets fix, window-flag fix, sheet-padding fix) all failed to close a
+repeatedly-reported bug: a strip of map visible under the sheet instead of its
+background reaching the true screen edge.
+
+**Root cause, verified against RN's own source, not guessed:**
+`ReactModalHostView.kt` unconditionally sets `SOFT_INPUT_ADJUST_RESIZE` on the
+Modal's Android Dialog window with no prop to disable it. Combined with
+edge-to-edge (required for the sheet to reach the screen edge at all), this is a
+documented broken Android combination — the OS's own "resized" content
+measurement sticks short of the real window even with no keyboard open, and the
+shortfall happens in Android's native measure pass, before React's tree is even
+laid out. No JS-level styling — padding, margin, flex, minHeight — can fix a
+measurement that's already wrong before React sees it. Confirmed via
+`adb shell dumpsys window windows`: the Dialog's own LayoutParams correctly
+reported `fillxfill` (full display) while RN's internal content view inside it
+still measured short — proof the gap was native-side, not a React styling bug.
+
+**Fix:** `src/components/BottomSheetOverlay.tsx` (new) renders the sheet
+absolutely-positioned over `MapScreen`'s own tree instead of in a separate Dialog
+window, so it inherits the main Activity's window — already proven correct
+edge-to-edge (the settings/locate buttons on `MapScreen` already use
+`insets.top`/`insets.bottom` successfully). Handles the Android back button via
+`BackHandler` (Modal's `onRequestClose` equivalent) and the slide-in entrance via
+`Animated.timing` (Modal's `animationType="slide"` equivalent). `ModalSafeArea`
+(the earlier workaround for stale insets inside a separate Modal window) is
+deleted — with no separate window, `useSafeAreaInsets()` from the app-root
+provider works correctly again.
+
+**Verified:** `npx tsc --noEmit` clean, `npx jest --forceExit` 23/23. **NOT
+verified:** on-screen confirmation on any device. The Android emulator became
+unusable partway through this session (see "Emulator instability" below) before
+a clean screenshot could be taken. Next session should open the app on the S24,
+open all three bottom sheets, and confirm the sheet's white background reaches
+the true bottom of the screen with no map/dimmed-backdrop strip visible
+underneath — if it still shows the gap, the diagnosis above needs revisiting,
+but it's now grounded in framework source rather than another guess.
+
+### Also fixed this session (see `memory.md` 2026-09-15 continued entry for full detail)
+
+- Marker lag during pan/zoom → switched to GL-native `GeoJSONSource`+`Layer`.
+- Tag CRUD (edit/delete) added to `ManageTagsBottomSheet`; caught and fixed a real
+  `database.batch()` misuse that silently broke tag deletion.
+- Keyboard covering inputs → `KeyboardAvoidingView behavior="padding"` was a
+  no-op on Android in all three sheets; fixed unconditionally.
+- Locate button never called `requestLocationPermissions()` on manual taps
+  (only the initial-mount effect did, which skips itself on nearly every
+  relaunch) — unified into one `goToCurrentLocation()`.
+- UI audit against Material Design 3: added a `+` FAB (pin creation had zero
+  on-screen affordance before — long-press only), moved Save to a sticky footer
+  outside the ScrollView, bumped several touch targets from 40-44dp to the
+  48dp minimum, added a loading spinner to the locate button.
+- Layout corrections: settings button + tag row anchor top-left (not
+  top-right — an earlier literal reading of an instruction that turned out
+  reversed); MapLibre compass forced always-visible (`compassHiddenFacingNorth`
+  defaults to hiding it whenever the map faces north, which looked like it had
+  been removed entirely).
+
+### Emulator instability (environment issue, not a code bug)
+
+By the end of this session the `nameplace_test` AVD had accumulated 25,000+
+CPU-seconds from continuous use and entered a persistent System UI ANR
+crash-loop that survived two guest-OS reboots, a full emulator process
+kill+restart, and an `adb` server restart. Several zombie `npx jest` processes
+from earlier in the session were also found still running hours later,
+degrading test timing in the meantime (killed via
+`Get-CimInstance Win32_Process | ... | Stop-Process`). Recommend starting a
+**fresh emulator session** (or just the real S24) for the next round of testing
+rather than continuing to fight this AVD instance.
+
+### Delivery
+
+arm64-only release APK at `release/builds/nameplace-mobile-v1.0.0.apk`
+(rebuilt 2026-09-15 22:54 local, includes everything through commit `1bcef3a`).
+47MB — too large to send through this session's file-transfer tool; grab it
+from the local path directly.
+
+---
+
+## Previous Session (2026-09-15, Session 5) — MapLibre migration
 
 ### MapLibre migration — code done, device verification still outstanding
 
