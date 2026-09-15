@@ -215,6 +215,9 @@ const EnhancedMapScreen = ({
         // bottom-left, matching the locate button's height on the opposite side but
         // shifted up clear of the MapLibre logo/attribution row that already lives there.
         compassPosition={{ bottom: 130 + insets.bottom, left: 20 }}
+        // Default MapLibre behavior hides the compass whenever the map faces true north,
+        // which made it look removed entirely on a never-rotated map — keep it visible always.
+        compassHiddenFacingNorth={false}
       >
         <Camera
           ref={cameraRef}
@@ -241,8 +244,8 @@ const EnhancedMapScreen = ({
       </MapLibreMap>
 
       {/* Horizontal Tag Filters — box-none so the container itself never eats map touches.
-          right is reserved for the settings button's own width so pills never scroll under it. */}
-      <View pointerEvents="box-none" style={[styles.filterContainer, { top: insets.top + (Platform.OS === 'ios' ? 10 : 15), right: 78 }]}>
+          left is reserved for the settings button's own width so the row starts right after it. */}
+      <View pointerEvents="box-none" style={[styles.filterContainer, { top: insets.top + (Platform.OS === 'ios' ? 10 : 15), left: 78 }]}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -442,7 +445,7 @@ const styles = StyleSheet.create({
   },
   settingsButton: {
     position: 'absolute',
-    right: 20,
+    left: 20,
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
     padding: 12,
     borderRadius: 24,

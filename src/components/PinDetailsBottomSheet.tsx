@@ -146,7 +146,7 @@ export const PinDetailsBottomSheet = ({ pin, onClose, allTags, pinTags }: PinDet
   };
 
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
+    <Modal visible transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
       <ModalSafeArea>
         {(insets) => (
       <View style={styles.overlay}>

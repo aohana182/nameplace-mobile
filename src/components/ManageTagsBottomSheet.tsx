@@ -123,7 +123,7 @@ export const ManageTagsBottomSheet = ({ onClose, tags }: ManageTagsBottomSheetPr
   );
 
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
+    <Modal visible transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
       <ModalSafeArea>
         {(insets) => (
       <View style={styles.overlay}>

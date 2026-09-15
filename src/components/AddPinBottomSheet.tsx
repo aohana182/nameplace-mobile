@@ -113,7 +113,7 @@ export const AddPinBottomSheet = ({ location, onClose, tags }: AddPinBottomSheet
   if (!location) return null;
 
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
+    <Modal visible transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
       <ModalSafeArea>
         {(insets) => (
       <View style={styles.overlay}>
