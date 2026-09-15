@@ -40,3 +40,6 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# locally-built test APKs — not source, don't belong in history
+/release/builds/

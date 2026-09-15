@@ -28,6 +28,14 @@ jest.mock('../model/database', () => {
   };
 });
 
+// Official mock for useSafeAreaInsets() etc. — components under test call this directly
+// without a SafeAreaProvider ancestor. The mock file's `export default {...}` compiles to
+// a `default` key under CJS interop, so unwrap it to get the named exports our code imports.
+jest.mock('react-native-safe-area-context', () => {
+  const mock = require('react-native-safe-area-context/jest/mock');
+  return mock.default ?? mock;
+});
+
 // Mock haptics module
 jest.mock('expo-haptics', () => ({
   impactAsync: jest.fn(),

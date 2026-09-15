@@ -13,6 +13,7 @@ import {
   Platform,
   Alert,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { database } from '../model/database';
 import Pin from '../model/Pin';
 import Tag from '../model/Tag';
@@ -20,17 +21,7 @@ import PinTag from '../model/PinTag';
 import withObservables from '@nozbe/with-observables';
 import * as Haptics from 'expo-haptics';
 import { Plus, Check, X } from 'lucide-react-native';
-
-const PALETTE_COLORS = [
-  '#2563EB', // Blue
-  '#7C3AED', // Purple
-  '#059669', // Green
-  '#D97706', // Orange
-  '#DC2626', // Red
-  '#DB2777', // Pink
-  '#0891B2', // Cyan
-  '#4B5563', // Gray
-];
+import { PALETTE_COLORS } from '../constants/tagColors';
 
 interface AddPinBottomSheetProps {
   location: { latitude: number; longitude: number } | null;
@@ -39,6 +30,7 @@ interface AddPinBottomSheetProps {
 }
 
 export const AddPinBottomSheet = ({ location, onClose, tags }: AddPinBottomSheetProps) => {
+  const insets = useSafeAreaInsets();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
@@ -133,7 +125,7 @@ export const AddPinBottomSheet = ({ location, onClose, tags }: AddPinBottomSheet
           <View style={styles.sheet}>
             <View style={styles.handle} />
             <ScrollView
-              contentContainerStyle={styles.contentContainer}
+              contentContainerStyle={[styles.contentContainer, { paddingBottom: 48 + insets.bottom }]}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >

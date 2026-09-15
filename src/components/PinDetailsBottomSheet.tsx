@@ -20,17 +20,8 @@ import { Q } from '@nozbe/watermelondb';
 import withObservables from '@nozbe/with-observables';
 import { Trash2, Edit3, X, Check, Plus } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
-
-const PALETTE_COLORS = [
-  '#2563EB', // Blue
-  '#7C3AED', // Purple
-  '#059669', // Green
-  '#D97706', // Orange
-  '#DC2626', // Red
-  '#DB2777', // Pink
-  '#0891B2', // Cyan
-  '#4B5563', // Gray
-];
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { PALETTE_COLORS } from '../constants/tagColors';
 
 interface PinDetailsBottomSheetProps {
   pin: Pin;
@@ -40,6 +31,7 @@ interface PinDetailsBottomSheetProps {
 }
 
 export const PinDetailsBottomSheet = ({ pin, onClose, allTags, pinTags }: PinDetailsBottomSheetProps) => {
+  const insets = useSafeAreaInsets();
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(pin.name);
   const [description, setDescription] = useState(pin.description || '');
@@ -166,7 +158,7 @@ export const PinDetailsBottomSheet = ({ pin, onClose, allTags, pinTags }: PinDet
           <View style={styles.sheet}>
             <View style={styles.handle} />
             <ScrollView
-              contentContainerStyle={styles.contentContainer}
+              contentContainerStyle={[styles.contentContainer, { paddingBottom: 48 + insets.bottom }]}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >

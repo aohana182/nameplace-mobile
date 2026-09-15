@@ -2,6 +2,7 @@ import 'react-native-gesture-handler';
 import React from 'react';
 import { StyleSheet, View, ActivityIndicator } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import MapScreen from './src/screens/MapScreen';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts, Roboto_400Regular, Roboto_700Bold } from '@expo-google-fonts/roboto';
@@ -39,10 +40,12 @@ const AppContent = () => {
 export default function App() {
   return (
     <ErrorBoundary>
-      <GestureHandlerRootView style={styles.container}>
-        <AppContent />
-        <StatusBar style="auto" />
-      </GestureHandlerRootView>
+      <SafeAreaProvider>
+        <GestureHandlerRootView style={styles.container}>
+          <AppContent />
+          <StatusBar style="auto" />
+        </GestureHandlerRootView>
+      </SafeAreaProvider>
     </ErrorBoundary>
   );
 }

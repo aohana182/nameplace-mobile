@@ -1,15 +1,19 @@
-import React, { useEffect, useState, useRef, useCallback, useMemo, memo } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { StyleSheet, View, Alert, TouchableOpacity, Text, ScrollView, Platform } from 'react-native';
 import {
   Map as MapLibreMap,
   Camera,
   Marker,
+  GeoJSONSource,
+  Layer,
   UserLocation,
   type MapRef,
   type CameraRef,
   type LngLat,
   type PressEvent,
+  type PressEventWithFeatures,
 } from '@maplibre/maplibre-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { database } from '../model/database';
 import { Q } from '@nozbe/watermelondb';
@@ -20,7 +24,8 @@ import PinTag from '../model/PinTag';
 import { requestLocationPermissions, getCurrentLocation } from '../services/LocationService';
 import AddPinBottomSheet from '../components/AddPinBottomSheet';
 import PinDetailsBottomSheet from '../components/PinDetailsBottomSheet';
-import { Navigation } from 'lucide-react-native';
+import ManageTagsBottomSheet from '../components/ManageTagsBottomSheet';
+import { Navigation, Settings } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
 interface MapScreenProps {
@@ -36,23 +41,6 @@ interface CameraState {
   center: LngLat;
   zoom: number;
 }
-
-interface PinMarkerProps {
-  pinId: string;
-  lat: number;
-  lng: number;
-  color: string;
-  onPress: (pinId: string) => void;
-}
-
-const PinMarker = memo(({ pinId, lat, lng, color, onPress }: PinMarkerProps) => {
-  const handlePress = useCallback(() => onPress(pinId), [onPress, pinId]);
-  return (
-    <Marker id={pinId} lngLat={[lng, lat]} onPress={handlePress}>
-      <View style={[styles.pin, { backgroundColor: color }]} />
-    </Marker>
-  );
-});
 
 const MAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty';
 const CAMERA_KEY = 'nameplace:lastCamera';
@@ -70,8 +58,10 @@ const EnhancedMapScreen = ({
   toggleFilterTag,
   clearFilters,
 }: MapScreenProps) => {
+  const insets = useSafeAreaInsets();
   const [selectedLocation, setSelectedLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [activePin, setActivePin] = useState<Pin | null>(null);
+  const [showManageTags, setShowManageTags] = useState(false);
   const [isMapReady, setIsMapReady] = useState(false);
   const [initialCamera, setInitialCamera] = useState<CameraState | null>(null);
   const mapRef = useRef<MapRef>(null);
@@ -101,6 +91,28 @@ const EnhancedMapScreen = ({
       setActivePin(pin);
     }
   }, []);
+
+  // GL-native circle layer instead of View-based Markers: Markers are positioned by the
+  // JS/UI thread and visibly lag behind the map's own GL rendering during pan/zoom
+  // gestures (the library's own docs note this — "If you have static view consider using
+  // ViewAnnotation or SymbolLayer for better performance"). A GeoJSON circle layer is
+  // rendered by the same GL surface as the map tiles, so it can never desync from them.
+  const pinsGeoJSON = useMemo((): GeoJSON.FeatureCollection => ({
+    type: 'FeatureCollection',
+    features: pins.map((pin) => ({
+      type: 'Feature',
+      id: pin.id,
+      geometry: { type: 'Point', coordinates: [pin.lng, pin.lat] },
+      properties: { pinId: pin.id, color: pinColors[pin.id] ?? '#3B82F6' },
+    })),
+  }), [pins, pinColors]);
+
+  const handlePinFeaturePress = useCallback((event: { nativeEvent: PressEventWithFeatures }) => {
+    const pinId = event.nativeEvent.features[0]?.properties?.pinId;
+    if (typeof pinId === 'string') {
+      handleMarkerPress(pinId);
+    }
+  }, [handleMarkerPress]);
 
   useEffect(() => {
     AsyncStorage.getItem(CAMERA_KEY)
@@ -202,16 +214,18 @@ const EnhancedMapScreen = ({
           initialViewState={{ center: initialCamera.center, zoom: initialCamera.zoom }}
         />
         <UserLocation animated />
-        {pins.map((pin) => (
-          <PinMarker
-            key={pin.id}
-            pinId={pin.id}
-            lat={pin.lat}
-            lng={pin.lng}
-            color={pinColors[pin.id] ?? '#3B82F6'}
-            onPress={handleMarkerPress}
+        <GeoJSONSource id="pins" data={pinsGeoJSON} onPress={handlePinFeaturePress}>
+          <Layer
+            id="pins-circles"
+            type="circle"
+            paint={{
+              'circle-radius': 12,
+              'circle-color': ['get', 'color'],
+              'circle-stroke-width': 2,
+              'circle-stroke-color': '#FFFFFF',
+            }}
           />
-        ))}
+        </GeoJSONSource>
         {selectedLocation && (
           <Marker id="pending-pin" lngLat={[selectedLocation.longitude, selectedLocation.latitude]}>
             <View style={[styles.pin, { backgroundColor: '#10B981' }]} />
@@ -220,7 +234,7 @@ const EnhancedMapScreen = ({
       </MapLibreMap>
 
       {/* Horizontal Tag Filters — box-none so the container itself never eats map touches */}
-      <View pointerEvents="box-none" style={[styles.filterContainer, { top: Platform.OS === 'ios' ? 60 : 35 }]}>
+      <View pointerEvents="box-none" style={[styles.filterContainer, { top: insets.top + (Platform.OS === 'ios' ? 10 : 15) }]}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -263,9 +277,20 @@ const EnhancedMapScreen = ({
         </ScrollView>
       </View>
 
-      <TouchableOpacity 
-        style={styles.locationButton} 
-        activeOpacity={0.8} 
+      <TouchableOpacity
+        style={[styles.settingsButton, { top: insets.top + (Platform.OS === 'ios' ? 10 : 15) }]}
+        activeOpacity={0.8}
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          setShowManageTags(true);
+        }}
+      >
+        <Settings size={20} color="#2563EB" />
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[styles.locationButton, { bottom: 50 + insets.bottom }]}
+        activeOpacity={0.8}
         onPress={centerOnMe}
       >
         <Navigation size={22} color="#2563EB" />
@@ -284,6 +309,10 @@ const EnhancedMapScreen = ({
           pin={activePin}
           onClose={() => setActivePin(null)}
         />
+      )}
+
+      {showManageTags && (
+        <ManageTagsBottomSheet onClose={() => setShowManageTags(false)} />
       )}
     </View>
   );
@@ -402,6 +431,25 @@ const styles = StyleSheet.create({
   },
   textWhite: {
     color: '#FFFFFF',
+  },
+  settingsButton: {
+    position: 'absolute',
+    right: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    padding: 12,
+    borderRadius: 24,
+    elevation: 6,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    minHeight: 44,
+    minWidth: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    zIndex: 11,
   },
   locationButton: {
     position: 'absolute',
