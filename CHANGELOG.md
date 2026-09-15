@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   touching this file again).
 
 ### Fixed
+- **Region persistence was silently defeated whenever GPS succeeded on relaunch.** The location-init effect auto-snapped the camera to the device's current GPS position on every mount (not just true first launch), overriding the just-restored camera position ~1.5s after it appeared. Pre-existing bug, carried over unchanged from the `react-native-maps` version — found via an adversarial code review, confirmed via `git show` against the pre-migration file, and verified live (camera now holds its restored position across a kill+relaunch even with a GPS fix active). Fixed by only running the auto-snap on a true first launch (no camera was restored from storage).
 - **Fresh installs crashed on launch with a WatermelonDB migration error.** `src/model/migrations.ts` declared `schemaMigrations({ migrations: [] })` against a schema at `version: 2`; WatermelonDB requires migrations to statically cover `1..schema.version` even for a brand-new database. Added a no-op `{toVersion: 2, steps: []}` migration (there is no real v1 install to preserve — pre-launch app). Found via a clean emulator install; never surfaced before because prior device testing reused an S24 with an already-valid local DB.
 - **Pin detail / add-pin panels self-dismissing.** Replaced `@gorhom/bottom-sheet`
   with React Native's built-in `Modal` in `AddPinBottomSheet` and

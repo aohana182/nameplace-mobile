@@ -77,6 +77,7 @@ const EnhancedMapScreen = ({
   const mapRef = useRef<MapRef>(null);
   const cameraRef = useRef<CameraRef>(null);
   const pinsRef = useRef<Pin[]>(pins);
+  const hasRestoredCameraRef = useRef(false);
   useEffect(() => { pinsRef.current = pins; }, [pins]);
 
   // Stable color lookup: recomputes only when the underlying data actually changes,
@@ -105,7 +106,11 @@ const EnhancedMapScreen = ({
     AsyncStorage.getItem(CAMERA_KEY)
       .then(raw => {
         if (raw) {
-          try { setInitialCamera(JSON.parse(raw)); return; } catch {}
+          try {
+            setInitialCamera(JSON.parse(raw));
+            hasRestoredCameraRef.current = true;
+            return;
+          } catch {}
         }
         setInitialCamera(DEFAULT_CAMERA);
       })
@@ -127,17 +132,25 @@ const EnhancedMapScreen = ({
     }
   }, []);
 
+  const flyToLocation = useCallback((loc: { latitude: number; longitude: number }) => {
+    cameraRef.current?.flyTo({
+      center: [loc.longitude, loc.latitude],
+      zoom: 16,
+      duration: 1500,
+    });
+  }, []);
+
   useEffect(() => {
     if (!isMapReady) return;
+    // Only auto-snap to GPS on a true first launch (no camera restored from storage) —
+    // otherwise this silently overrides the user's last panned/zoomed position a moment
+    // after it's restored, defeating region persistence on every relaunch where GPS succeeds.
+    if (hasRestoredCameraRef.current) return;
     const init = async () => {
       try {
         await requestLocationPermissions();
         const loc = await getCurrentLocation();
-        cameraRef.current?.flyTo({
-          center: [loc.longitude, loc.latitude],
-          zoom: 16,
-          duration: 1500,
-        });
+        flyToLocation(loc);
       } catch (e: any) {
         const msg: string = e?.message ?? '';
         if (msg.includes('denied') || msg.includes('Permission')) {
@@ -164,11 +177,7 @@ const EnhancedMapScreen = ({
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
       const loc = await getCurrentLocation();
-      cameraRef.current?.flyTo({
-        center: [loc.longitude, loc.latitude],
-        zoom: 16,
-        duration: 1500,
-      });
+      flyToLocation(loc);
     } catch (e) {
       Alert.alert('Location Error', 'Could not get current GPS location. Please check your settings.');
     }
