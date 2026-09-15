@@ -40,6 +40,7 @@
           "locationAlwaysAndWhenInUsePermission": "Allow Nameplace to use your location to pin connections."
         }
       ],
+      "@maplibre/maplibre-react-native",
       "./plugins/withNewArchDisabled"
     ],
     "extra": {

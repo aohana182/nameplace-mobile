@@ -28,18 +28,6 @@ jest.mock('../model/database', () => {
   };
 });
 
-// Mock native bottom-sheet to prevent native layout runtime issues in Jest
-jest.mock('@gorhom/bottom-sheet', () => {
-  const React = require('react');
-  const { View } = require('react-native');
-  return {
-    __esModule: true,
-    default: ({ children }: any) => <View testID="bottom-sheet">{children}</View>,
-    BottomSheetScrollView: ({ children }: any) => <View testID="bottom-sheet-scroll">{children}</View>,
-    BottomSheetBackdrop: () => null,
-  };
-});
-
 // Mock haptics module
 jest.mock('expo-haptics', () => ({
   impactAsync: jest.fn(),

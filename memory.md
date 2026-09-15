@@ -68,3 +68,15 @@ Decisions to settle at start (permanent ones first): final package name
 (EAS cloud AAB vs local), Play Console account status. Also blockers already
 on file: set `android.versionCode`, add GCP Maps key app-restriction with the
 release SHA-1, privacy policy (location permission), Data Safety form.
+
+### 2026-09-15 — MapLibre migration executed + verified on a local emulator
+
+**What:** Carried out the MapLibre migration that Session 4 (2026-06-22) only planned. The planned API (`MapLibreGL.MapView`/`PointAnnotation`/`setCamera`) turned out to be stale — `@maplibre/maplibre-react-native` had moved to v11.3.10 with a rewritten API (`Map`/`Camera`/`Marker`, `LngLat` tuples, `flyTo`/`easeTo`/`setStop`). Verified every API call against the package's own shipped `.d.ts` files rather than the hosted docs, after catching the hosted docs' own `Camera.setStop` example quoting a field name (`centerCoordinate`) that doesn't match the actual `CameraStop` type — the docs site itself is stale/wrong in places, not just this project's 3-month-old plan.
+
+**Why re-derive from source instead of trusting docs:** third `tsc` error in a row from copy-pasted "official" examples. Full detail and the corrected API surface are now in `HANDOFF.md`'s "START HERE" section.
+
+**Unrelated bug found blocking verification:** `src/model/migrations.ts` (`schemaMigrations({ migrations: [] })` against `schema.version: 2`) threw a fatal runtime error on any fresh install — WatermelonDB requires static migration coverage of `1..version` even with no existing DB. Never seen before because every prior test install reused an S24 that already had a valid DB from before schema v2 existed. Fixed with a no-op migration entry.
+
+**How verified (no S24 this session):** installed a local Android emulator from scratch (SDK had platform-tools but no `emulator`/system-image — installed both via `sdkmanager`, one AVD `nameplace_test`, Pixel 6 profile). Ran the full HANDOFF Step 6 checklist on it: tiles, pin CRUD, tag-color rendering, tag filtering, and — the one most worth re-checking after any camera-related change — region + pin-data persistence across a full `am force-stop` + cold relaunch. All passed.
+
+**Reusable for next time:** dev-client on this emulator defaults to trying Metro over the host's real LAN IP, which this machine's network mangles (chunked-encoding parse errors — smells like AV/security-software HTTP interception, same family of issue as the TLS revocation-check failures seen earlier from plain `curl`). Fix: `adb reverse tcp:8081 tcp:8081` + relaunch via deep link forcing `10.0.2.2:8081` (the emulator-to-host loopback alias). Documented in HANDOFF.md.

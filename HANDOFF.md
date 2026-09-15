@@ -4,10 +4,60 @@ This file documents the status, architectural decisions, and next steps for Name
 
 ---
 
-## ⚡ START HERE — Next Session (updated 2026-06-22, Session 4)
+## ⚡ START HERE — Next Session (updated 2026-09-15, Session 5)
 
 **Branch: `master`. Tag `v1.0.0-google-maps` = last working Google Maps build.**
 **Restore with: `git checkout v1.0.0-google-maps`**
+
+### MapLibre migration — code done, device verification still outstanding
+
+The migration below ("Next task: MapLibre migration") was written 2026-06-22 against
+`@maplibre/maplibre-react-native` docs at the time. By 2026-09-15 (this session) the
+library had moved to v11.3.10 with a **materially different API** — the namespaced
+`MapLibreGL.MapView` / `MapLibreGL.Camera` / `PointAnnotation` style shown in the
+plan below **does not exist in the installed version**. Verified against
+`node_modules/@maplibre/maplibre-react-native/lib/typescript/module/**/*.d.ts`
+(source, not docs — the hosted docs site's own JSDoc example for `Camera.setStop`
+is itself stale/wrong, so trust the shipped `.d.ts` files over any guide, including
+this one, next time):
+
+- Import style: named exports, not a namespace — `import { Map, Camera, Marker, UserLocation } from '@maplibre/maplibre-react-native'`
+- Map component is `Map` (aliased to `MapLibreMap` in code to avoid shadowing JS `Map`), not `MapView`
+- **Requires a config plugin** the old plan omitted: `"@maplibre/maplibre-react-native"` added to `app.json` plugins array (done)
+- Coordinates are `LngLat = [longitude, latitude]` tuples everywhere, not `{lng, lat}` objects
+- Marker: `<Marker id={pinId} lngLat={[lng, lat]} onPress={...}><View .../></Marker>` — exactly one child required, no `pinColor` prop (custom View is the only way to color a pin now)
+- Camera imperative moves: `cameraRef.current?.flyTo({ center: [lng, lat], zoom, duration })` — NOT `setCamera`, NOT `setStop({centerCoordinate, zoomLevel})` (that shape doesn't typecheck against `CameraStop`)
+- Region persistence: `Map` still has `onRegionDidChange`, but there's no payload-based center/zoom on the event worth trusting — call `await mapRef.current?.getViewState()` (returns `{center, zoom, bearing, pitch, bounds}`) inside the handler instead
+- User location dot: `<UserLocation animated />` as a child of `<Map>`, replacing `showsUserLocation`
+
+**What was done this session (2026-09-15):**
+- `MapScreen.tsx` rewritten against the current API (see above)
+- `react-native-maps` + `@gorhom/bottom-sheet` removed from `package.json`; `@maplibre/maplibre-react-native@^11.3.10` added
+- `patches/react-native-maps+1.27.2.patch` deleted (no longer needed)
+- `app.config.js` deleted (only existed to inject the Google Maps key)
+- `app.json`: added the MapLibre config plugin
+- `.env.example`: removed `GOOGLE_MAPS_API_KEY`
+- Dead `@gorhom/bottom-sheet` jest mock removed from `src/test/UIComponentRendering.test.tsx`
+- `README.md` maps section updated
+- Verified: `npx tsc --noEmit` clean, `npx jest` 18/18 passing, `npx expo prebuild --clean` succeeds (config plugin resolves, no native config errors)
+- **Verified on a local Android emulator** (no S24 available this session — see "Local emulator setup" below for how to reproduce). Full Step 6 checklist run and confirmed:
+  - Map tiles load (OpenFreeMap/`liberty` style renders correctly — streets, water, labels)
+  - Long-press drops a pending marker, `AddPinBottomSheet` opens
+  - Save a pin — persists to WatermelonDB and renders immediately in the tag's color (tested with "Work" → purple)
+  - Tap an existing pin — `PinDetailsBottomSheet` opens with correct name/notes/tags
+  - Edit mode opens pre-filled correctly; delete shows the native confirm dialog
+  - Center-on-me / initial GPS snap fails gracefully on a GPS-less emulator (caught, logged, no crash — this is expected without a mock location, not a bug)
+  - Tag filter toggling correctly hides/shows pins via the reactive WatermelonDB query
+  - **Region AND pin data persist across a full `am force-stop` + cold relaunch** — confirms the `initialCamera` gating fix (wait for AsyncStorage before first Camera render) was necessary; without it the camera would very likely have raced back to `DEFAULT_CAMERA` on most relaunches
+- **Found and fixed a second, unrelated pre-existing bug while testing**: `src/model/migrations.ts` had `schemaMigrations({ migrations: [] })` against a schema declared at `version: 2`. WatermelonDB's `SQLiteAdapter` statically requires migrations to cover `1..schema.version` even on a fresh install with no existing DB — this threw `[runtime not ready]: Diagnostic error: Missing migration` on every cold install, before ever reaching MapScreen. Never caught before because prior sessions only ever installed onto a S24 that already had an older, already-valid local DB. Fixed with a no-op `{toVersion: 2, steps: []}` migration entry (there's no real v1 install to migrate from — this app is pre-launch).
+- Also note: dev-client on an emulator defaults to trying Metro at the host's real LAN IP (e.g. `192.168.8.101:8081`), which this machine's network path corrupts (chunked-transfer parse errors, likely AV/security-software HTTP interception) — use `adb reverse tcp:8081 tcp:8081` plus a cold relaunch via `adb shell am start -a android.intent.action.VIEW -d "exp+nameplace-mobile://expo-development-client/?url=http%3A%2F%2F10.0.2.2%3A8081"` to force it onto the emulator-to-host loopback alias instead.
+
+### Local emulator setup (added this session, for future fast iteration without the S24)
+SDK lives at `C:\Users\avioh\Android` (`ANDROID_HOME`). Installed this session: `emulator` package + `system-images;android-35;google_apis;x86_64` via `sdkmanager`, one AVD named `nameplace_test` (Pixel 6 profile) via `avdmanager`. Boot with:
+```
+"$ANDROID_HOME/emulator/emulator.exe" -avd nameplace_test
+```
+Then `npx expo run:android --device nameplace_test`. See the Metro-connection note above — the first launch will likely need the `adb reverse` + deep-link fix.
 
 ---
 
@@ -39,7 +89,15 @@ See ADR 05 in `DECISION_LOG.md` for full context.
 
 ---
 
-### Next task: MapLibre migration
+### MapLibre migration plan (2026-06-22) — ⚠️ SUPERSEDED, API syntax below is wrong
+
+> This plan was written against a `@maplibre/maplibre-react-native` API that no
+> longer matches the shipped v11.3.10 package (see "START HERE" above for the
+> corrected API surface, verified 2026-09-15 against the package's own `.d.ts`
+> files). The **decision** (MapLibre + OpenFreeMap, no API key) and the
+> **coordinate-order warning** below are still correct and worth reading. The
+> **code samples** (`MapLibreGL.MapView`, `PointAnnotation`, `setCamera`) are not
+> — do not copy them. Retained for the migration checklist and reasoning only.
 
 #### Step 0 — Read first
 The critical file is `src/screens/MapScreen.tsx`. Read it in full before touching anything. It uses a non-obvious pattern: pin taps go through `MapView.onMarkerPress` at the view level (not per-Marker), because per-`<Marker>` `onPress` is unreliable under Fabric (see Session 3 notes below). MapLibre has a different event model — plan the equivalent carefully before writing code.

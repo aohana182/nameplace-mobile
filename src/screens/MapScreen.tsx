@@ -1,7 +1,15 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo, memo } from 'react';
 import { StyleSheet, View, Alert, TouchableOpacity, Text, ScrollView, Platform } from 'react-native';
-import type { MarkerPressEvent } from 'react-native-maps';
-import MapView, { Marker, PROVIDER_GOOGLE, LongPressEvent, Region } from 'react-native-maps';
+import {
+  Map as MapLibreMap,
+  Camera,
+  Marker,
+  UserLocation,
+  type MapRef,
+  type CameraRef,
+  type LngLat,
+  type PressEvent,
+} from '@maplibre/maplibre-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { database } from '../model/database';
 import { Q } from '@nozbe/watermelondb';
@@ -24,28 +32,34 @@ interface MapScreenProps {
   clearFilters: () => void;
 }
 
+interface CameraState {
+  center: LngLat;
+  zoom: number;
+}
+
 interface PinMarkerProps {
   pinId: string;
   lat: number;
   lng: number;
   color: string;
+  onPress: (pinId: string) => void;
 }
 
-const PinMarker = memo(({ pinId, lat, lng, color }: PinMarkerProps) => (
-  <Marker
-    identifier={pinId}
-    coordinate={{ latitude: lat, longitude: lng }}
-    pinColor={color}
-  />
-));
+const PinMarker = memo(({ pinId, lat, lng, color, onPress }: PinMarkerProps) => {
+  const handlePress = useCallback(() => onPress(pinId), [onPress, pinId]);
+  return (
+    <Marker id={pinId} lngLat={[lng, lat]} onPress={handlePress}>
+      <View style={[styles.pin, { backgroundColor: color }]} />
+    </Marker>
+  );
+});
 
-const REGION_KEY = 'nameplace:lastRegion';
+const MAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty';
+const CAMERA_KEY = 'nameplace:lastCamera';
 
-const DEFAULT_REGION: Region = {
-  latitude: 37.7749,
-  longitude: -122.4194,
-  latitudeDelta: 0.1,
-  longitudeDelta: 0.1,
+const DEFAULT_CAMERA: CameraState = {
+  center: [-122.4194, 37.7749],
+  zoom: 10,
 };
 
 const EnhancedMapScreen = ({
@@ -59,8 +73,9 @@ const EnhancedMapScreen = ({
   const [selectedLocation, setSelectedLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [activePin, setActivePin] = useState<Pin | null>(null);
   const [isMapReady, setIsMapReady] = useState(false);
-  const [initialRegion, setInitialRegion] = useState<Region>(DEFAULT_REGION);
-  const mapRef = useRef<MapView>(null);
+  const [initialCamera, setInitialCamera] = useState<CameraState | null>(null);
+  const mapRef = useRef<MapRef>(null);
+  const cameraRef = useRef<CameraRef>(null);
   const pinsRef = useRef<Pin[]>(pins);
   useEffect(() => { pinsRef.current = pins; }, [pins]);
 
@@ -77,8 +92,7 @@ const EnhancedMapScreen = ({
     return m;
   }, [pins, pinTags, tags]);
 
-  const handleMarkerPress = useCallback((event: MarkerPressEvent) => {
-    const pinId = event.nativeEvent.id;
+  const handleMarkerPress = useCallback((pinId: string) => {
     const pin = pinsRef.current.find(p => p.id === pinId);
     if (pin) {
       Haptics.selectionAsync();
@@ -88,17 +102,29 @@ const EnhancedMapScreen = ({
   }, []);
 
   useEffect(() => {
-    AsyncStorage.getItem(REGION_KEY)
+    AsyncStorage.getItem(CAMERA_KEY)
       .then(raw => {
         if (raw) {
-          try { setInitialRegion(JSON.parse(raw)); } catch {}
+          try { setInitialCamera(JSON.parse(raw)); return; } catch {}
         }
+        setInitialCamera(DEFAULT_CAMERA);
       })
-      .catch(err => console.warn('Failed to restore map region:', err));
+      .catch(err => {
+        console.warn('Failed to restore map camera:', err);
+        setInitialCamera(DEFAULT_CAMERA);
+      });
   }, []);
 
-  const handleRegionChangeComplete = useCallback((region: Region) => {
-    AsyncStorage.setItem(REGION_KEY, JSON.stringify(region));
+  const handleRegionDidChange = useCallback(async () => {
+    try {
+      const viewState = await mapRef.current?.getViewState();
+      if (viewState) {
+        const camera: CameraState = { center: viewState.center, zoom: viewState.zoom };
+        AsyncStorage.setItem(CAMERA_KEY, JSON.stringify(camera));
+      }
+    } catch (err) {
+      console.warn('Failed to persist map camera:', err);
+    }
   }, []);
 
   useEffect(() => {
@@ -107,11 +133,11 @@ const EnhancedMapScreen = ({
       try {
         await requestLocationPermissions();
         const loc = await getCurrentLocation();
-        mapRef.current?.animateToRegion({
-          ...loc,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        }, 1500);
+        cameraRef.current?.flyTo({
+          center: [loc.longitude, loc.latitude],
+          zoom: 16,
+          duration: 1500,
+        });
       } catch (e: any) {
         const msg: string = e?.message ?? '';
         if (msg.includes('denied') || msg.includes('Permission')) {
@@ -127,41 +153,46 @@ const EnhancedMapScreen = ({
     init();
   }, [isMapReady]);
 
-  const handleLongPress = (event: LongPressEvent) => {
+  const handleLongPress = (event: { nativeEvent: PressEvent }) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     setActivePin(null);
-    setSelectedLocation(event.nativeEvent.coordinate);
+    const [longitude, latitude] = event.nativeEvent.lngLat;
+    setSelectedLocation({ latitude, longitude });
   };
 
   const centerOnMe = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
       const loc = await getCurrentLocation();
-      mapRef.current?.animateToRegion({
-        ...loc,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
+      cameraRef.current?.flyTo({
+        center: [loc.longitude, loc.latitude],
+        zoom: 16,
+        duration: 1500,
       });
     } catch (e) {
       Alert.alert('Location Error', 'Could not get current GPS location. Please check your settings.');
     }
   };
 
+  if (!initialCamera) {
+    return <View style={styles.container} />;
+  }
+
   return (
     <View style={styles.container}>
-      <MapView
+      <MapLibreMap
         ref={mapRef}
-        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+        mapStyle={MAP_STYLE_URL}
         style={styles.map}
-        initialRegion={initialRegion}
-        moveOnMarkerPress={false}
-        onMapReady={() => setIsMapReady(true)}
+        onDidFinishLoadingMap={() => setIsMapReady(true)}
         onLongPress={handleLongPress}
-        onMarkerPress={handleMarkerPress}
-        onRegionChangeComplete={handleRegionChangeComplete}
-        showsUserLocation
-        showsMyLocationButton={false}
+        onRegionDidChange={handleRegionDidChange}
       >
+        <Camera
+          ref={cameraRef}
+          initialViewState={{ center: initialCamera.center, zoom: initialCamera.zoom }}
+        />
+        <UserLocation animated />
         {pins.map((pin) => (
           <PinMarker
             key={pin.id}
@@ -169,12 +200,15 @@ const EnhancedMapScreen = ({
             lat={pin.lat}
             lng={pin.lng}
             color={pinColors[pin.id] ?? '#3B82F6'}
+            onPress={handleMarkerPress}
           />
         ))}
         {selectedLocation && (
-          <Marker coordinate={selectedLocation} pinColor="#10B981" />
+          <Marker id="pending-pin" lngLat={[selectedLocation.longitude, selectedLocation.latitude]}>
+            <View style={[styles.pin, { backgroundColor: '#10B981' }]} />
+          </Marker>
         )}
-      </MapView>
+      </MapLibreMap>
 
       {/* Horizontal Tag Filters — box-none so the container itself never eats map touches */}
       <View pointerEvents="box-none" style={[styles.filterContainer, { top: Platform.OS === 'ios' ? 60 : 35 }]}>
@@ -292,6 +326,18 @@ const styles = StyleSheet.create({
   map: {
     width: '100%',
     height: '100%',
+  },
+  pin: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 4,
   },
   filterContainer: {
     position: 'absolute',
