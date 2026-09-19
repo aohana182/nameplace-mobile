@@ -74,8 +74,10 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(15, 23, 42, 0.4)',
     zIndex: 100,
+    // Tint lives on the backdrop child, not here: a translucent view with elevation casts
+    // a shadow under its own body, which double-dimmed the map everywhere except a bright
+    // column near the centre.
     elevation: 100,
   },
   backdrop: {
@@ -84,6 +86,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
+    backgroundColor: 'rgba(15, 23, 42, 0.4)',
   },
   sheetSlide: {
     width: '100%',
