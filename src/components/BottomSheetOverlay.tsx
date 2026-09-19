@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import { Animated, BackHandler, Pressable, StyleSheet } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, BackHandler, Keyboard, Pressable, StyleSheet } from 'react-native';
 
 interface BottomSheetOverlayProps {
   onClose: () => void;
@@ -16,10 +16,26 @@ interface BottomSheetOverlayProps {
 // of the real window even with no keyboard open, and no JS-level styling can
 // override it — the shortfall happens in Android's native measure pass before React
 // ever sees it. Rendering the sheet in-tree instead makes it inherit the main
-// Activity's window, which already correctly handles this (see the KeyboardAvoidingView
-// comment in AddPinBottomSheet.tsx) — sidestepping the Dialog-specific bug entirely.
+// Activity's window, which already correctly handles this — sidestepping the
+// Dialog-specific bug entirely.
+//
+// The keyboard lift is done here from the event's own height (0 when hidden) rather than
+// with KeyboardAvoidingView: KAV subtracts a parent-relative frame from a screen-relative
+// keyboard Y, which doesn't hold for a bottom-anchored sheet under edge-to-edge and left a
+// stuck padding strip under the sheet. Android's adjustResize doesn't resize the window
+// under edge-to-edge, so this padding is what keeps inputs above the keyboard.
 export const BottomSheetOverlay = ({ onClose, children }: BottomSheetOverlayProps) => {
   const translateY = useRef(new Animated.Value(400)).current;
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', e => setKeyboardHeight(e.endCoordinates.height));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardHeight(0));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
 
   useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -37,7 +53,9 @@ export const BottomSheetOverlay = ({ onClose, children }: BottomSheetOverlayProp
   return (
     <Animated.View style={styles.overlay}>
       <Pressable style={styles.backdrop} onPress={onClose} />
-      <Animated.View style={[styles.sheetSlide, { transform: [{ translateY }] }]}>
+      <Animated.View
+        style={[styles.sheetSlide, { paddingBottom: keyboardHeight, transform: [{ translateY }] }]}
+      >
         {children}
       </Animated.View>
     </Animated.View>

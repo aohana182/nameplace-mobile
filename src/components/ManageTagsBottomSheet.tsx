@@ -6,7 +6,6 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  KeyboardAvoidingView,
   Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -124,12 +123,7 @@ export const ManageTagsBottomSheet = ({ onClose, tags }: ManageTagsBottomSheetPr
 
   return (
     <BottomSheetOverlay onClose={onClose}>
-        <KeyboardAvoidingView
-          // See AddPinBottomSheet.tsx for why this is 'padding' on Android too:
-          // adjustResize doesn't reliably resize the window once edge-to-edge is enabled.
-          behavior="padding"
-          style={styles.sheetWrapper}
-        >
+        <View style={styles.sheetWrapper}>
           <View style={[styles.sheet, { paddingBottom: insets.bottom }]}>
             <View style={styles.handle} />
             <ScrollView
@@ -242,7 +236,7 @@ export const ManageTagsBottomSheet = ({ onClose, tags }: ManageTagsBottomSheetPr
               )}
             </ScrollView>
           </View>
-        </KeyboardAvoidingView>
+        </View>
     </BottomSheetOverlay>
   );
 };

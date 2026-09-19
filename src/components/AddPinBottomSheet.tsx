@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Keyboard,
   ScrollView,
-  KeyboardAvoidingView,
   Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -114,16 +113,7 @@ export const AddPinBottomSheet = ({ location, onClose, tags }: AddPinBottomSheet
 
   return (
     <BottomSheetOverlay onClose={onClose}>
-        <KeyboardAvoidingView
-          // 'padding' on both platforms: Android's adjustResize (set in AndroidManifest)
-          // stops reliably resizing the window once edge-to-edge is enabled (gradle.properties
-          // has edgeToEdgeEnabled=true) — the app's window covers the full screen, so the OS has
-          // no boundary left to shrink and the keyboard just overlays content instead. This
-          // KeyboardAvoidingView padding is what actually keeps focused inputs and the Save
-          // button above the keyboard now.
-          behavior="padding"
-          style={styles.sheetWrapper}
-        >
+        <View style={styles.sheetWrapper}>
           <View style={[styles.sheet, { paddingBottom: insets.bottom }]}>
             <View style={styles.handle} />
             <ScrollView
@@ -258,7 +248,7 @@ export const AddPinBottomSheet = ({ location, onClose, tags }: AddPinBottomSheet
               </TouchableOpacity>
             </View>
           </View>
-        </KeyboardAvoidingView>
+        </View>
     </BottomSheetOverlay>
   );
 };
