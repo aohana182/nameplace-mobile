@@ -4,7 +4,43 @@ This file documents the status, architectural decisions, and next steps for Name
 
 ---
 
-## ⚡ START HERE — Next Session (updated 2026-09-15, Session 6)
+## ⚡ START HERE — Next Session (updated 2026-09-19, Session 7)
+
+**Branch: `fix/sheet-bottom-gap` (pushed, NOT merged to `master`). Latest code commit: `c791da0`.**
+
+### #1 priority: confirm on the S24 — `release/builds/nameplace-mobile-v1.0.0-sheetfix.apk`
+
+The bottom-sheet gap (sheet ending ~110-130dp above the screen bottom) was NOT the
+`<Modal>` bug and NOT `KeyboardAvoidingView` / keyboard events. Measured on an emulator
+with `uiautomator dump`: the sheet wrapper was 288px taller than the sheet inside it, with
+zero keyboard events fired (confirmed with temporary logging). Cause: `maxHeight: '90%'`
+on the sheet inside an auto-height wrapper. Fix: `BottomSheetOverlay` caps the wrapper at
+`useWindowDimensions().height * 0.9` in px; the sheets use `flexShrink: 1`. Keyboard lift
+is now `paddingBottom = keyboardDidShow.endCoordinates.height` in the overlay (KAV removed).
+The tag-chip row was 10dp below the settings gear (scroll `paddingVertical: 10`); fixed with `top - 10`.
+
+Verified on an x86_64 emulator: all three sheets reach the bottom, keyboard lift works.
+**Not verified on the S24.** If the gap is still there on the S24, dump bounds again
+(`adb shell uiautomator dump`) and compare wrapper vs. sheet bounds before changing anything.
+
+### How to build (Windows 260-char path limit — READ THIS)
+
+Native builds FAIL from `C:\Users\avioh\nameplace-mobile` (ninja: "Filename longer than 260
+characters", gesture-handler codegen path). A `subst` drive does not help (expo autolinking
+breaks at a drive root). Build from the short-path clone **`C:\bld2`** instead:
+
+- `git pull` the branch there (changes must be committed AND pushed first)
+- `cd C:\bld2\android && gradlew.bat app:assembleRelease -PreactNativeArchitectures=arm64-v8a` for the S24,
+  or `=x86_64` for the emulator (the arm64 APK cannot run on the x86_64 emulator)
+- set `JAVA_HOME` (JDK 21) and `ANDROID_HOME=C:\Users\avioh\Android`; `C:\bld2` needs `.env` copied from this repo
+- output: `C:\bld2\android\app\build\outputs\apk\release\app-release.apk`
+- `adb.exe` needs Windows-style paths (`C:/bld2/...`), not Git Bash `/c/...`
+
+---
+
+## Previous Session (2026-09-15, Session 6)
+
+### (superseded) START HERE (updated 2026-09-15, Session 6)
 
 **Branch: `master`, up to date with `origin/master`. Latest commit: `1bcef3a`.**
 **Tag `v1.0.0-google-maps` = last working Google Maps build. Restore with: `git checkout v1.0.0-google-maps`**
