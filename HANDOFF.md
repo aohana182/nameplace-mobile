@@ -6,7 +6,7 @@ This file documents the status, architectural decisions, and next steps for Name
 
 ## ⚡ START HERE — Next Session (updated 2026-09-19, Session 7)
 
-**Branch: `fix/sheet-bottom-gap` (pushed, NOT merged to `master`). Latest code commit: `c791da0`.**
+**Branch: `fix/sheet-bottom-gap` (pushed, NOT merged to `master`). Latest code commit: `fc72e7e`; tests: `90a6e89`.**
 
 ### #1 priority: confirm on the S24 — `release/builds/nameplace-mobile-v1.0.0-sheetfix.apk`
 
@@ -18,6 +18,11 @@ on the sheet inside an auto-height wrapper. Fix: `BottomSheetOverlay` caps the w
 `useWindowDimensions().height * 0.9` in px; the sheets use `flexShrink: 1`. Keyboard lift
 is now `paddingBottom = keyboardDidShow.endCoordinates.height` in the overlay (KAV removed).
 The tag-chip row was 10dp below the settings gear (scroll `paddingVertical: 10`); fixed with `top - 10`.
+
+A second issue: a bright vertical strip in the middle of the dimmed map. Cause: the overlay had both
+`elevation: 100` and the translucent tint, so its own shadow dimmed the map a second time everywhere except
+one column. Fix: the tint now lives on the backdrop child (`fc72e7e`). Pixel-measured: every dimmed pixel is
+now the single 40% tint. Tests in `src/test/BottomSheetOverlay.test.tsx`.
 
 Verified on an x86_64 emulator: all three sheets reach the bottom, keyboard lift works.
 **Not verified on the S24.** If the gap is still there on the S24, dump bounds again
