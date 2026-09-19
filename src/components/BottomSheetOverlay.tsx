@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, BackHandler, Keyboard, Pressable, StyleSheet } from 'react-native';
+import { Animated, BackHandler, Keyboard, Pressable, StyleSheet, useWindowDimensions } from 'react-native';
 
 interface BottomSheetOverlayProps {
   onClose: () => void;
@@ -19,14 +19,15 @@ interface BottomSheetOverlayProps {
 // Activity's window, which already correctly handles this — sidestepping the
 // Dialog-specific bug entirely.
 //
-// The keyboard lift is done here from the event's own height (0 when hidden) rather than
-// with KeyboardAvoidingView: KAV subtracts a parent-relative frame from a screen-relative
-// keyboard Y, which doesn't hold for a bottom-anchored sheet under edge-to-edge and left a
-// stuck padding strip under the sheet. Android's adjustResize doesn't resize the window
-// under edge-to-edge, so this padding is what keeps inputs above the keyboard.
+// Android's adjustResize doesn't resize the window under edge-to-edge, so the keyboard lift
+// is done here from the keyboard event's own height (0 when hidden).
+// The height cap is in pixels on purpose: a percentage maxHeight on a child of this
+// auto-height wrapper resolved against a taller measured height and left an empty strip
+// (~110dp) under the sheet, with no keyboard involved.
 export const BottomSheetOverlay = ({ onClose, children }: BottomSheetOverlayProps) => {
   const translateY = useRef(new Animated.Value(400)).current;
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const { height: windowHeight } = useWindowDimensions();
 
   useEffect(() => {
     const show = Keyboard.addListener('keyboardDidShow', e => setKeyboardHeight(e.endCoordinates.height));
@@ -54,7 +55,10 @@ export const BottomSheetOverlay = ({ onClose, children }: BottomSheetOverlayProp
     <Animated.View style={styles.overlay}>
       <Pressable style={styles.backdrop} onPress={onClose} />
       <Animated.View
-        style={[styles.sheetSlide, { paddingBottom: keyboardHeight, transform: [{ translateY }] }]}
+        style={[
+          styles.sheetSlide,
+          { maxHeight: windowHeight * 0.9, paddingBottom: keyboardHeight, transform: [{ translateY }] },
+        ]}
       >
         {children}
       </Animated.View>

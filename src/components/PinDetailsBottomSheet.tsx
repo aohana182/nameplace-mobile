@@ -322,12 +322,13 @@ export const PinDetailsBottomSheet = ({ pin, onClose, allTags, pinTags }: PinDet
 const styles = StyleSheet.create({
   sheetWrapper: {
     width: '100%',
+    flexShrink: 1,
   },
   sheet: {
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: '90%',
+    flexShrink: 1,
     paddingTop: 8,
   },
   handle: {
