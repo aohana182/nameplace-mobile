@@ -73,7 +73,7 @@ cd android
 | 4.6 | Feature graphic | 1024×500 JPG/PNG | ⏳ TODO | Shown at top of store listing. |
 | 4.7 | Short description | Max 80 chars | ✅ Draft ready | See `release/store-listing.md` |
 | 4.8 | Full description | Max 4000 chars | ✅ Draft ready | See `release/store-listing.md` |
-| 4.9 | Privacy policy | Hosted public URL | ✅ Draft ready | See `release/privacy-policy.md` — host on GitHub Pages or Notion |
+| 4.9 | Privacy policy | Hosted public URL | ✅ Draft ready | See `PRIVACY.md` at the repo root. The repo is private, so it still needs a public URL (GitHub Pages, Notion, or a public repo) |
 
 ### Icon design brief
 The icon should communicate: **location/map + people/connection**.
@@ -105,7 +105,7 @@ Specs for designer:
 | 5.2 | Upload AAB to Internal Testing | ⏳ TODO | Upload first, then complete the forms |
 | 5.3 | Data Safety form | ⏳ TODO | Location: collected, on-device only, not shared. No personal data transmitted. |
 | 5.4 | Content Rating questionnaire | ⏳ TODO | IARC form — maps/social utility app |
-| 5.5 | Privacy policy URL | ⏳ TODO | Host the draft from `release/privacy-policy.md` |
+| 5.5 | Privacy policy URL | ⏳ TODO | Publish `PRIVACY.md` at a public URL |
 | 5.6 | Pass pre-launch report | ⏳ TODO | Google runs Firebase Test Lab automatically on upload |
 | 5.7 | Promote to Production | ⏳ TODO | Only after internal testing passes on S24 |
 
