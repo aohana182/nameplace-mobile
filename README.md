@@ -75,7 +75,7 @@ Current state and build notes are in [HANDOFF.md](HANDOFF.md). Architecture deci
 
 None of this is built.
 
-- **Play Store release.** Needs a release signing key, a real app icon, store graphics, a hosted privacy policy and Play Console setup. Checklist: [release/RELEASE_PREP.md](release/RELEASE_PREP.md).
+- **Play Store release.** Needs a release signing key, a real app icon, store graphics, a public URL for [PRIVACY.md](PRIVACY.md), and Play Console setup. Checklist: [release/RELEASE_PREP.md](release/RELEASE_PREP.md).
 - **iOS.** The code is cross-platform. It has not been tried.
 - **Encrypted cloud backup (v2).** Opt-in. The key is derived on the device from your password, data is encrypted with AES-GCM-256 before upload, and the server stores only encrypted blobs. It needs a schema migration first. Design: [PRD.md](PRD.md) section 4.
 

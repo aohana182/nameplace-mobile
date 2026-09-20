@@ -63,4 +63,6 @@ If we update this policy, we will post the new version here and update the "Last
 
 ## Contact
 
-Questions? Open an issue on the project repository or contact the developer directly.
+Questions about this policy? Contact the developer:
+
+Developer: aohana182 (https://github.com/aohana182)

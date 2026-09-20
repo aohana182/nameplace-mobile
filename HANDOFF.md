@@ -216,7 +216,7 @@ Then `npx expo run:android --device nameplace_test`. See the Metro-connection no
 **Release assets (`release/` folder):**
 - `RELEASE_PREP.md` — full todo tracker with statuses
 - `store-listing.md` — humanized Play Store copy (short desc, full desc, changelog, keywords)
-- `privacy-policy.md` — draft ready to host
+- privacy policy lives at the repo root: `PRIVACY.md` (needs a public URL for Play Console; repo is private)
 
 **Decision:** Replace Google Maps with MapLibre + OpenFreeMap. No API key anywhere.
 See ADR 05 in `DECISION_LOG.md` for full context.
