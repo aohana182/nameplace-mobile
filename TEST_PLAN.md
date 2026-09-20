@@ -8,7 +8,7 @@ This document maps the functional requirements defined in the v1 PRD to specific
 
 | Req ID | Requirement Description | Test Case ID(s) | Verification Method |
 | :--- | :--- | :--- | :--- |
-| **R1.1** | Render native maps (Google Maps / Apple Maps) | `TC-MAP-01` | Manual (UI) |
+| **R1.1** | Render the map (MapLibre + OpenFreeMap tiles) | `TC-MAP-01` | Manual (UI) |
 | **R1.2** | Defensive GPS lookup & Center on Me | `TC-GPS-01`, `TC-GPS-02` | Manual (UI) & Automated (Mock Location) |
 | **R1.3** | Map Long-Press drops a pin & opens Add Pin sheet | `TC-PIN-01` | Manual (UI) |
 | **R1.4** | Tapping marker opens Pin Details sheet; marker color matches tag | `TC-PIN-02` | Manual (UI) |
@@ -29,7 +29,7 @@ This document maps the functional requirements defined in the v1 PRD to specific
 *   **Input:** Open application.
 *   **Steps:**
     1. Launch Nameplace Mobile from a cold boot.
-    2. Verify map tiles load (Google Maps on Android, Apple Maps on iOS).
+    2. Verify map tiles load (OpenFreeMap vector tiles, no API key).
     3. Pan and zoom around the map.
 *   **Expected Result:** Map panning/zooming runs fluidly at 60fps. No grey tiles or layout shifting.
 

@@ -35,7 +35,7 @@ To ensure rapid delivery, absolute privacy, and high reliability, the project is
 ## 3. Phase 1: v1 (Local-Only) Requirements
 
 ### 3.1. Location-First Mapping & Pinning
-* **R1.1 (Native Maps):** Display a high-performance native map (`react-native-maps`) using Google Maps on Android and Apple Maps on iOS.
+* **R1.1 (Maps):** Display a GL-rendered map with `@maplibre/maplibre-react-native` and OpenFreeMap vector tiles on Android and iOS. No API key or billing account is required (replaced Google Maps on 2026-09-15; see ADR 05 in `DECISION_LOG.md`).
 * **R1.2 (Current Location):** A "Center on Me" button using a defensive GPS lookup with a 10-second timeout. Fallback to last known position on timeout or permission denial.
 * **R1.3 (Pin Drop):** Long-pressing anywhere on the map drops a new pin and opens the "Add Pin" bottom sheet.
 * **R1.4 (Interactive Markers):** Tapping a pin marker displays the "Pin Details" bottom sheet. Markers should reflect the color of their primary tag.

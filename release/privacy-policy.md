@@ -1,6 +1,6 @@
 # Privacy Policy — Nameplace
 
-*Last updated: June 2026*
+*Last updated: September 2026*
 
 ---
 
@@ -37,15 +37,15 @@ Nameplace requests access to your device's location to show your current positio
 - Is never transmitted to any server
 - Is never stored beyond what you explicitly save as a pin
 
-You can deny or revoke location permission at any time in your device Settings. The app will continue to function — you will simply need to place pins by long-pressing on the map manually.
+You can deny or revoke location permission at any time in your device Settings. The app keeps working without it: place pins by long-pressing on the map, or with the + button.
 
 ---
 
 ## Third-party services
 
-Nameplace uses **Google Maps** to render the map. Google's own privacy policy applies to map tile rendering. Nameplace does not pass any of your pin data or personal information to Google Maps — only your device's location (if permitted) is used to center the map.
+Nameplace draws its map with MapLibre, using free vector map tiles from **OpenFreeMap** (https://openfreemap.org). To draw the map, the app downloads tiles from OpenFreeMap's servers. That means OpenFreeMap can see your device's IP address and which part of the map you are viewing.
 
-Google Maps Privacy Policy: https://policies.google.com/privacy
+Nameplace does not send OpenFreeMap, or anyone else, your pins, names, notes, tags or GPS position. There is no Google Maps SDK and no map API key in the app.
 
 ---
 

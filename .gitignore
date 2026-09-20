@@ -32,7 +32,8 @@ yarn-error.*
 
 # local env files
 .env
-.env*.local
+.env.*
+!.env.example
 
 # typescript
 *.tsbuildinfo
@@ -43,3 +44,12 @@ yarn-error.*
 
 # locally-built test APKs — not source, don't belong in history
 /release/builds/
+
+# OS / editor
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.suo
+*.sw?
+*.log

@@ -449,12 +449,11 @@ The local-first foundation is fully implemented, verified, and styled to a senio
 1.  **Direct-to-Map Navigation:** The app starts directly on the map. Signing up for backups is 100% optional, preventing onboarding abandonment.
 2.  **Zero-Knowledge Cloud Backup (v2):** To resolve privacy concerns, cloud data will be encrypted client-side using **AES-256-GCM** before uploading. The Supabase SaaS server acts only as an encrypted sync blob repository.
 3.  **Key Derivation:** The E2EE encryption key is derived locally using PBKDF2 from the user's master password. If they lose their password, recovery is impossible (requires clear UX warnings during password creation).
-4.  **Safe Native Map Fallback:** Avoided hardcoding Google Maps (`PROVIDER_GOOGLE`) on iOS to prevent app crashes on boot if Google API keys are missing in `Info.plist`. iOS gracefully runs Apple Maps, and Android runs Google Maps.
+4.  **Map provider:** MapLibre + OpenFreeMap on both platforms, no API key (replaced Google Maps on 2026-09-15; see ADR 05 in `DECISION_LOG.md`).
 
 ---
 
-## 3. Global GEMINI.md Guidelines Applied
-We have integrated the following diagnostics guidelines into the project:
+## 3. Testing and tooling guidelines applied
 *   **Mock Testing Caveats:** Acknowledged in our tests that LokiJS (in-memory test DB) does not support ACID transactional rollbacks. Tests verify logic queries while SQLite natively handles ACID in production.
 *   **Absolute CLI Targeting:** Ensured all background test runs and Git logs use absolute path flags (`git -C`) to prevent sandboxed shell path errors.
 *   **Zero-Knowledge Backups:** Cloud schemas must store only encrypted blobs.
