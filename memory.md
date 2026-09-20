@@ -128,3 +128,7 @@ release SHA-1, privacy policy (location permission), Data Safety form.
 **What:** S24 screenshot showed the gap again (plus tag chips 10dp below the settings gear). Reproduced on an x86_64 emulator built in `C:\bld2`. Layout dump: wrapper [883,2400] vs sheet [883,2112] = 288px empty, no keyboard events fired. Cause was `maxHeight: '90%'` inside an auto-height wrapper, not KAV and not the earlier Modal issue. Fixed with a px cap in `BottomSheetOverlay`.
 **Why it took long:** two theories (KAV frame arithmetic, then keyboard-event padding) were committed before measuring. The x86_64 emulator + `uiautomator dump` + temporary `console.log` in `C:\bld2` gave the answer in one cycle. Measure first.
 **Next:** Avi confirms on the S24 with `release/builds/nameplace-mobile-v1.0.0-sheetfix.apk`; then merge `fix/sheet-bottom-gap` to master (PR). Native builds must be done from `C:\bld2` (see HANDOFF).
+
+### 2026-09-20 — Confirmed on the S24; PR #2 merged
+**What:** Avi checked the final APK on the S24: sheets reach the bottom, dimming is even. README, CONTRIBUTING, templates and the stale-doc cleanup shipped in the same PR.
+**Open:** `fix/typecheck-prd-alignment` branch not deleted (blocked); `GITHUB_TOKEN` env var is invalid and overrides the working gh login; Supabase URL + anon key remain in history (commit 1158c6e), repo is private, no history rewrite done.

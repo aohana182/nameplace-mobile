@@ -4,11 +4,11 @@ This file documents the status, architectural decisions, and next steps for Name
 
 ---
 
-## ⚡ START HERE — Next Session (updated 2026-09-19, Session 7)
+## ⚡ START HERE — Next Session (updated 2026-09-20, Session 7)
 
-**Branch: `fix/sheet-bottom-gap` (pushed, NOT merged to `master`). Latest code commit: `fc72e7e`; tests: `90a6e89`.**
+**Status: the sheet fixes are confirmed on the S24 (Avi, 2026-09-20) and merged to `master` via PR #2. Code commits: `c791da0` (height cap), `fc72e7e` (tint); tests: `90a6e89`.**
 
-### #1 priority: confirm on the S24 — `release/builds/nameplace-mobile-v1.0.0-sheetfix.apk`
+### What was fixed (confirmed on the S24 with `release/builds/nameplace-mobile-v1.0.0-sheetfix.apk`)
 
 The bottom-sheet gap (sheet ending ~110-130dp above the screen bottom) was NOT the
 `<Modal>` bug and NOT `KeyboardAvoidingView` / keyboard events. Measured on an emulator
@@ -25,7 +25,7 @@ one column. Fix: the tint now lives on the backdrop child (`fc72e7e`). Pixel-mea
 now the single 40% tint. Tests in `src/test/BottomSheetOverlay.test.tsx`.
 
 Verified on an x86_64 emulator: all three sheets reach the bottom, keyboard lift works.
-**Not verified on the S24.** If the gap is still there on the S24, dump bounds again
+Confirmed on the S24. If a gap ever returns, dump bounds again
 (`adb shell uiautomator dump`) and compare wrapper vs. sheet bounds before changing anything.
 
 ### How to build (Windows 260-char path limit — READ THIS)
