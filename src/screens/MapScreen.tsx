@@ -260,8 +260,9 @@ const EnhancedMapScreen = ({
       </MapLibreMap>
 
       {/* Horizontal Tag Filters — box-none so the container itself never eats map touches.
-          left is reserved for the settings button's own width so the row starts right after it. */}
-      <View pointerEvents="box-none" style={[styles.filterContainer, { top: insets.top + (Platform.OS === 'ios' ? 10 : 15), left: 78 }]}>
+          left is reserved for the settings button's own width so the row starts right after it.
+          The -10 on top cancels filterScrollContent's paddingVertical (kept for shadow room) so chips level with the settings button. */}
+      <View pointerEvents="box-none" style={[styles.filterContainer, { top: insets.top + (Platform.OS === 'ios' ? 10 : 15) - 10, left: 78 }]}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}

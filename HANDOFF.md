@@ -4,7 +4,48 @@ This file documents the status, architectural decisions, and next steps for Name
 
 ---
 
-## ⚡ START HERE — Next Session (updated 2026-09-15, Session 6)
+## ⚡ START HERE — Next Session (updated 2026-09-20, Session 7)
+
+**Status: the sheet fixes are confirmed on the S24 (Avi, 2026-09-20) and merged to `master` via PR #2. Code commits: `c791da0` (height cap), `fc72e7e` (tint); tests: `90a6e89`.**
+
+### What was fixed (confirmed on the S24 with `release/builds/nameplace-mobile-v1.0.0-sheetfix.apk`)
+
+The bottom-sheet gap (sheet ending ~110-130dp above the screen bottom) was NOT the
+`<Modal>` bug and NOT `KeyboardAvoidingView` / keyboard events. Measured on an emulator
+with `uiautomator dump`: the sheet wrapper was 288px taller than the sheet inside it, with
+zero keyboard events fired (confirmed with temporary logging). Cause: `maxHeight: '90%'`
+on the sheet inside an auto-height wrapper. Fix: `BottomSheetOverlay` caps the wrapper at
+`useWindowDimensions().height * 0.9` in px; the sheets use `flexShrink: 1`. Keyboard lift
+is now `paddingBottom = keyboardDidShow.endCoordinates.height` in the overlay (KAV removed).
+The tag-chip row was 10dp below the settings gear (scroll `paddingVertical: 10`); fixed with `top - 10`.
+
+A second issue: a bright vertical strip in the middle of the dimmed map. Cause: the overlay had both
+`elevation: 100` and the translucent tint, so its own shadow dimmed the map a second time everywhere except
+one column. Fix: the tint now lives on the backdrop child (`fc72e7e`). Pixel-measured: every dimmed pixel is
+now the single 40% tint. Tests in `src/test/BottomSheetOverlay.test.tsx`.
+
+Verified on an x86_64 emulator: all three sheets reach the bottom, keyboard lift works.
+Confirmed on the S24. If a gap ever returns, dump bounds again
+(`adb shell uiautomator dump`) and compare wrapper vs. sheet bounds before changing anything.
+
+### How to build (Windows 260-char path limit — READ THIS)
+
+Native builds FAIL from `C:\Users\avioh\nameplace-mobile` (ninja: "Filename longer than 260
+characters", gesture-handler codegen path). A `subst` drive does not help (expo autolinking
+breaks at a drive root). Build from the short-path clone **`C:\bld2`** instead:
+
+- `git pull` the branch there (changes must be committed AND pushed first)
+- `cd C:\bld2\android && gradlew.bat app:assembleRelease -PreactNativeArchitectures=arm64-v8a` for the S24,
+  or `=x86_64` for the emulator (the arm64 APK cannot run on the x86_64 emulator)
+- set `JAVA_HOME` (JDK 21) and `ANDROID_HOME=C:\Users\avioh\Android`; `C:\bld2` needs `.env` copied from this repo
+- output: `C:\bld2\android\app\build\outputs\apk\release\app-release.apk`
+- `adb.exe` needs Windows-style paths (`C:/bld2/...`), not Git Bash `/c/...`
+
+---
+
+## Previous Session (2026-09-15, Session 6)
+
+### (superseded) START HERE (updated 2026-09-15, Session 6)
 
 **Branch: `master`, up to date with `origin/master`. Latest commit: `1bcef3a`.**
 **Tag `v1.0.0-google-maps` = last working Google Maps build. Restore with: `git checkout v1.0.0-google-maps`**
@@ -408,12 +449,11 @@ The local-first foundation is fully implemented, verified, and styled to a senio
 1.  **Direct-to-Map Navigation:** The app starts directly on the map. Signing up for backups is 100% optional, preventing onboarding abandonment.
 2.  **Zero-Knowledge Cloud Backup (v2):** To resolve privacy concerns, cloud data will be encrypted client-side using **AES-256-GCM** before uploading. The Supabase SaaS server acts only as an encrypted sync blob repository.
 3.  **Key Derivation:** The E2EE encryption key is derived locally using PBKDF2 from the user's master password. If they lose their password, recovery is impossible (requires clear UX warnings during password creation).
-4.  **Safe Native Map Fallback:** Avoided hardcoding Google Maps (`PROVIDER_GOOGLE`) on iOS to prevent app crashes on boot if Google API keys are missing in `Info.plist`. iOS gracefully runs Apple Maps, and Android runs Google Maps.
+4.  **Map provider:** MapLibre + OpenFreeMap on both platforms, no API key (replaced Google Maps on 2026-09-15; see ADR 05 in `DECISION_LOG.md`).
 
 ---
 
-## 3. Global GEMINI.md Guidelines Applied
-We have integrated the following diagnostics guidelines into the project:
+## 3. Testing and tooling guidelines applied
 *   **Mock Testing Caveats:** Acknowledged in our tests that LokiJS (in-memory test DB) does not support ACID transactional rollbacks. Tests verify logic queries while SQLite natively handles ACID in production.
 *   **Absolute CLI Targeting:** Ensured all background test runs and Git logs use absolute path flags (`git -C`) to prevent sandboxed shell path errors.
 *   **Zero-Knowledge Backups:** Cloud schemas must store only encrypted blobs.

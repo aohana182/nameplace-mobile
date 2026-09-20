@@ -1,57 +1,88 @@
 # Nameplace Mobile
 
-A high-performance, **Local-First** social utility app for pinning human connections to physical locations.
+Pin the people you meet to the place you met them. Every name and note stays on your phone.
 
-## The Local-First Philosophy
-Nameplace is built on the principle that your social data belongs on your device. Most apps treat the cloud as the source of truth, causing latency, login friction, and privacy leaks. Nameplace flips this:
+<p align="center">
+  <img src="assets/screenshots/map.png" alt="Map with tag filters" width="22%">
+  <img src="assets/screenshots/add-pin.png" alt="Add a connection pin" width="22%">
+  <img src="assets/screenshots/pin-details.png" alt="Pin details" width="22%">
+  <img src="assets/screenshots/manage-tags.png" alt="Manage tags" width="22%">
+</p>
 
-1.  **Device as Source of Truth:** All data is stored in a local SQLite database (WatermelonDB).
-2.  **Instant Persistence:** Database writes are synchronous and instant. The UI never waits for a network response.
-3.  **Maximum Privacy:** No cloud sync, no accounts, and no tracking. What you pin stays on your phone.
-4.  **Zero Friction:** No sign-up or login required. The app is ready to use the moment you open it.
+## Origin
 
-## Technical Stack
-- **Framework:** React Native (Expo SDK 56)
-- **Engine:** WatermelonDB (Reactive SQLite for high-performance storage)
-- **Map:** MapLibre + OpenFreeMap vector tiles (no API key)
-- **Design:** Senior-standard 44pt+ touch targets, native haptics, and fluid bottom-sheet gestures.
-- **Location:** Defensive GPS implementation with timeout fallbacks for reliable positioning.
+The idea is Jacob Roberts's, the one and only. He came up with it on the porch of his apartment in Leucadia, San Diego County. This app is that idea, built.
 
-## Why Local-Only?
-During development, we made the strategic decision to **purge Supabase and all cloud synchronization**. 
-- **Privacy:** We removed the "Magic Link" and OAuth flows to ensure no user data is ever transmitted to a third-party server.
-- **Speed:** By removing the cloud bottleneck, we achieved 0ms perceived latency for pin creation.
-- **Reliability:** The app works 100% reliably in "dead zones" (basements, remote trails, airplanes) because it has no external dependencies.
+## What it does
 
-## Maps provider history
+You meet someone. You keep the name, the notes and the spot on the map.
 
-**Tag `v1.0.0-google-maps`** is the last commit using Google Maps SDK. The app has been migrated to MapLibre + OpenFreeMap (no API key required, no billing account). See ADR 05 in `DECISION_LOG.md` for context.
+- Long-press the map, or tap **+** to drop a pin at the center of the screen. Save a name, notes and tags.
+- Every connection is a colored pin. Tap it to see who it was and how you met. Edit or delete from the same sheet.
+- Tags: Friend, Work, Family and Neighbor are built in. Add your own with a name and one of eight colors.
+- A row of tag chips over the map filters the pins. Select one or more.
+- The map reopens where you left it.
 
-To restore the Google Maps version: `git checkout v1.0.0-google-maps`
+## Privacy
 
-## Current Status & Known Limitations (2026-09-15)
+No accounts, no analytics, no backend. Pins live in an on-device SQLite database. The only network traffic is map tiles and styles from [OpenFreeMap](https://openfreemap.org), which needs no API key. Your pins, notes and GPS position are never sent anywhere.
 
-### User scoping (`user_id`) does not exist yet
-Earlier code assigned `userId` on models, but the field was never declared on any model nor present in the production schema — the writes were silent no-ops. They have been removed. Real `user_id` support arrives with the v2 backup work via a proper schema v3 migration (see `HANDOFF.md`).
+## Status
 
-### ⚠️ Schema migration warning
-The schema is at version 2 with **no migrations configured** (`src/model/database.ts`). In WatermelonDB, bumping the schema version without providing `schemaMigrations` **deletes and recreates the local database** on existing installs. Any future schema bump (e.g., v3 for `user_id`) must ship with a migration — this app's entire value is the local data.
+Version 1.0.0, local-only, Android. Tested on a Samsung S24 and an Android emulator. It has never been built or run on iOS.
 
-## Development & Testing
-### Commands
-- `npm start`: Launch the Expo development server.
-    - Press `s` to switch to Expo Go mode.
-- `npm run test`: Run the comprehensive test suite (Unit, Integration, and E2E journeys).
-- `npx tsc --noEmit`: Type-check; the codebase is expected to stay at zero errors.
+## Run it
 
-### Repository Structure
-- `src/model/`: Database schema and reactive models.
-- `src/screens/`: Pure native screens.
-- `src/components/`: Gesture-controlled bottom sheets and UI primitives.
-- `src/services/`: Local-only infrastructure (Location, etc.).
+Nameplace uses native modules (MapLibre, WatermelonDB), so it does not run in Expo Go. You need a development build: JDK 21 and the Android SDK.
 
-## Git Best Practices
-This repository follows a clean-state strategy. The migration to local-only is documented in the commit history and the `HANDOFF.md` file for architectural continuity.
+```sh
+git clone https://github.com/aohana182/nameplace-mobile.git
+cd nameplace-mobile
+npm install
+npx expo run:android   # builds and installs the dev client
+npm start              # starts Metro
+```
 
----
-*Senior Engineered by Nameplace Mobile Team.*
+Open the installed app on your device or emulator and it connects to Metro.
+
+**Windows:** keep the checkout path short. The native build fails once a generated path passes 260 characters. [CONTRIBUTING.md](CONTRIBUTING.md) has the workaround.
+
+## Test
+
+```sh
+npm test            # Jest + Testing Library
+npx tsc --noEmit    # type-check, zero errors expected
+```
+
+## Stack
+
+- Expo SDK 56, React Native 0.85, TypeScript
+- MapLibre with OpenFreeMap vector tiles
+- WatermelonDB on SQLite for storage and reactive queries
+- `expo-location` for GPS, with a timeout so a slow fix can't hang the screen
+
+## Layout
+
+- `src/screens/`: the map screen
+- `src/components/`: the add-pin, pin-details and manage-tags sheets, and the shared sheet overlay
+- `src/model/`: schema, models, migrations, seed data
+- `src/services/`: location
+- `src/test/`: tests
+
+Current state and build notes are in [HANDOFF.md](HANDOFF.md). Architecture decisions are in [DECISION_LOG.md](DECISION_LOG.md). Product requirements are in [PRD.md](PRD.md).
+
+## Roadmap
+
+None of this is built.
+
+- **Play Store release.** Needs a release signing key, a real app icon, store graphics, a hosted privacy policy and Play Console setup. Checklist: [release/RELEASE_PREP.md](release/RELEASE_PREP.md).
+- **iOS.** The code is cross-platform. It has not been tried.
+- **Encrypted cloud backup (v2).** Opt-in. The key is derived on the device from your password, data is encrypted with AES-GCM-256 before upload, and the server stores only encrypted blobs. It needs a schema migration first. Design: [PRD.md](PRD.md) section 4.
+
+## Contributing
+
+Branching, commit format and the PR process are in [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## License
+
+MIT. See [LICENSE](LICENSE).

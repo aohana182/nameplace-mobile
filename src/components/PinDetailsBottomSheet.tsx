@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Alert,
   ScrollView,
-  KeyboardAvoidingView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Pin from '../model/Pin';
@@ -147,12 +146,7 @@ export const PinDetailsBottomSheet = ({ pin, onClose, allTags, pinTags }: PinDet
 
   return (
     <BottomSheetOverlay onClose={onClose}>
-        <KeyboardAvoidingView
-          // See AddPinBottomSheet.tsx for why this is 'padding' on Android too:
-          // adjustResize doesn't reliably resize the window once edge-to-edge is enabled.
-          behavior="padding"
-          style={styles.sheetWrapper}
-        >
+        <View style={styles.sheetWrapper}>
           <View style={[styles.sheet, { paddingBottom: insets.bottom }]}>
             <View style={styles.handle} />
             <ScrollView
@@ -320,7 +314,7 @@ export const PinDetailsBottomSheet = ({ pin, onClose, allTags, pinTags }: PinDet
               )}
             </ScrollView>
           </View>
-        </KeyboardAvoidingView>
+        </View>
     </BottomSheetOverlay>
   );
 };
@@ -328,12 +322,13 @@ export const PinDetailsBottomSheet = ({ pin, onClose, allTags, pinTags }: PinDet
 const styles = StyleSheet.create({
   sheetWrapper: {
     width: '100%',
+    flexShrink: 1,
   },
   sheet: {
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: '90%',
+    flexShrink: 1,
     paddingTop: 8,
   },
   handle: {

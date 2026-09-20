@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import { Animated, BackHandler, Pressable, StyleSheet } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, BackHandler, Keyboard, Pressable, StyleSheet, useWindowDimensions } from 'react-native';
 
 interface BottomSheetOverlayProps {
   onClose: () => void;
@@ -16,10 +16,27 @@ interface BottomSheetOverlayProps {
 // of the real window even with no keyboard open, and no JS-level styling can
 // override it — the shortfall happens in Android's native measure pass before React
 // ever sees it. Rendering the sheet in-tree instead makes it inherit the main
-// Activity's window, which already correctly handles this (see the KeyboardAvoidingView
-// comment in AddPinBottomSheet.tsx) — sidestepping the Dialog-specific bug entirely.
+// Activity's window, which already correctly handles this — sidestepping the
+// Dialog-specific bug entirely.
+//
+// Android's adjustResize doesn't resize the window under edge-to-edge, so the keyboard lift
+// is done here from the keyboard event's own height (0 when hidden).
+// The height cap is in pixels on purpose: a percentage maxHeight on a child of this
+// auto-height wrapper resolved against a taller measured height and left an empty strip
+// (~110dp) under the sheet, with no keyboard involved.
 export const BottomSheetOverlay = ({ onClose, children }: BottomSheetOverlayProps) => {
   const translateY = useRef(new Animated.Value(400)).current;
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const { height: windowHeight } = useWindowDimensions();
+
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', e => setKeyboardHeight(e.endCoordinates.height));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardHeight(0));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
 
   useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -37,7 +54,12 @@ export const BottomSheetOverlay = ({ onClose, children }: BottomSheetOverlayProp
   return (
     <Animated.View style={styles.overlay}>
       <Pressable style={styles.backdrop} onPress={onClose} />
-      <Animated.View style={[styles.sheetSlide, { transform: [{ translateY }] }]}>
+      <Animated.View
+        style={[
+          styles.sheetSlide,
+          { maxHeight: windowHeight * 0.9, paddingBottom: keyboardHeight, transform: [{ translateY }] },
+        ]}
+      >
         {children}
       </Animated.View>
     </Animated.View>
@@ -52,8 +74,10 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(15, 23, 42, 0.4)',
     zIndex: 100,
+    // Tint lives on the backdrop child, not here: a translucent view with elevation casts
+    // a shadow under its own body, which double-dimmed the map everywhere except a bright
+    // column near the centre.
     elevation: 100,
   },
   backdrop: {
@@ -62,6 +86,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
+    backgroundColor: 'rgba(15, 23, 42, 0.4)',
   },
   sheetSlide: {
     width: '100%',

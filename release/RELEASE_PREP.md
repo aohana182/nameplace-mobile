@@ -113,7 +113,9 @@ Specs for designer:
 
 ## History Scrub — One-time (before pushing to remote)
 
-The API key at `AIzaSyCM9...` was in git history. Before pushing this repo to GitHub:
+> **Verified 2026-09-20:** no full-length Google Maps key exists in any commit of any ref; the only `AIza` strings are truncated placeholders in `app.config.js` and `DECISION_LOG.md`. What history does contain: `.env` was tracked in commit `1158c6e` (2026-05-31) with a Supabase URL and anon key, and was removed in `e88e9c7` (2026-06-22). The repo is private. Rotating the Supabase anon key is the relevant precaution if that project is ever used; the steps below scrub `.env` from history.
+
+Original note: the API key at `AIzaSyCM9...` was believed to be in git history. Before pushing this repo to GitHub:
 
 ```bash
 # Install git-filter-repo if needed:

@@ -122,3 +122,13 @@ release SHA-1, privacy policy (location permission), Data Safety form.
 **Delivery:** arm64-only release APK rebuilt at `release/builds/nameplace-mobile-v1.0.0.apk` (built 2026-09-15 22:54 local). Too large (47MB) to send directly through this session's file-transfer tool each time — Avi needs to grab it from the local path himself.
 
 **Global CLAUDE.md updated this session** (`C:\Users\avioh\.claude\CLAUDE.md`) with 4 new rules distilled from this session's mistakes: verify source before re-attempting a fix (don't patch the same bug empirically a second time), restate-and-confirm on literal/conflicting instructions before implementing, long-session environment hygiene (track background processes, watch for timing degradation as a sign of environmental not logical issues), and checkpoint verified increments mid-session rather than bundling many unverified changes into one long-lived uncommitted working tree.
+
+### 2026-09-19 16:55 — Real cause of the bottom-sheet gap; build process documented
+
+**What:** S24 screenshot showed the gap again (plus tag chips 10dp below the settings gear). Reproduced on an x86_64 emulator built in `C:\bld2`. Layout dump: wrapper [883,2400] vs sheet [883,2112] = 288px empty, no keyboard events fired. Cause was `maxHeight: '90%'` inside an auto-height wrapper, not KAV and not the earlier Modal issue. Fixed with a px cap in `BottomSheetOverlay`.
+**Why it took long:** two theories (KAV frame arithmetic, then keyboard-event padding) were committed before measuring. The x86_64 emulator + `uiautomator dump` + temporary `console.log` in `C:\bld2` gave the answer in one cycle. Measure first.
+**Next:** Avi confirms on the S24 with `release/builds/nameplace-mobile-v1.0.0-sheetfix.apk`; then merge `fix/sheet-bottom-gap` to master (PR). Native builds must be done from `C:\bld2` (see HANDOFF).
+
+### 2026-09-20 — Confirmed on the S24; PR #2 merged
+**What:** Avi checked the final APK on the S24: sheets reach the bottom, dimming is even. README, CONTRIBUTING, templates and the stale-doc cleanup shipped in the same PR.
+**Open:** `fix/typecheck-prd-alignment` branch not deleted (blocked); `GITHUB_TOKEN` env var is invalid and overrides the working gh login; Supabase URL + anon key remain in history (commit 1158c6e), repo is private, no history rewrite done.
