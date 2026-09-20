@@ -49,4 +49,3 @@ No accounts, analytics, ads, web build or social features. Do not add a network 
 - **`react-native-maps` and `@gorhom/bottom-sheet` are gone.** Do not reintroduce them; some older docs still mention them as history.
 - **The `android/` folder is generated** (gitignored). `npx expo prebuild --clean` regenerates it and discards manual edits to it.
 - **Layout bugs need a real screen.** Jest does not compute layout. Dump view bounds with `adb shell uiautomator dump` before changing paddings or insets.
-- **Git history contains an old Google Maps API key** (see `release/RELEASE_PREP.md`, "History Scrub"). Treat it as compromised; never reuse it.
