@@ -22,7 +22,7 @@
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"
       ],
-      "package": "com.ao18277.nameplacemobile"
+      "package": "com.nameplace.myapp"
     },
     "web": {
       "favicon": "./assets/favicon.png"
