@@ -422,8 +422,7 @@ device logcat to get ground truth *before* editing. Multiple rounds were wasted 
   local-only, but rotate it when convenient.
 
 **Next task (not started): Google Play Store packaging + assets.** See `memory.md`
-"NEXT TODO". Settle permanent decisions first: final package name (current
-`com.ao18277.nameplacemobile` is auto-generated), build method (EAS cloud AAB vs
+"NEXT TODO". Settle permanent decisions first: final package name (now set: `com.nameplace.myapp`, PR #4), build method (EAS cloud AAB vs
 local), Play Console account. Also: set `android.versionCode`, GCP Maps key
 app-restriction with release SHA-1, privacy policy (location), Data Safety form.
 
